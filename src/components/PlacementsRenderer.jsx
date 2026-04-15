@@ -70,24 +70,23 @@ function ProductGroup({ dropzoneMesh, items = [] }) {
     let cursorX = bbox.min.x
 
     items.forEach((item) => {
-      const { product, facings, stackVertical, spacing } = item
+      const { product, facings = 1, stackVertical = false, spacing = 0 } = item
       const [pWidth, pHeight, pDepth] = product.dimensions
+      const sMeters = (spacing || 0) * 0.0254 // inches to meters
 
-      // Use the cursorX to position the start of this product's block
-      const startX = cursorX + pWidth / 2
-      
       // Calculate how many fit in Y and Z
       const countY = stackVertical ? Math.max(1, Math.floor(dropzoneHeight / pHeight)) : 1
       const countZ = Math.max(1, Math.floor(dropzoneDepth  / pDepth))
 
-      // Vertical centering if not stacking
-      const startY = stackVertical ? (bbox.min.y + pHeight / 2) : (bbox.min.y + dropzoneHeight / 2)
+      // Start at the bottom of the collider (min Y) plus half the product height (since it's a centered box)
+      const startY = bbox.min.y + pHeight / 2
       const startZ = bbox.min.z + (dropzoneDepth - countZ * pDepth) / 2 + pDepth / 2
 
       for (let y = 0; y < countY; y++) {
         for (let z = 0; z < countZ; z++) {
           for (let x = 0; x < facings; x++) {
-            const posX = startX + x * pWidth
+            // Apply spacing between each "facing" (row)
+            const posX = cursorX + pWidth / 2 + x * (pWidth + sMeters)
             
             // Check if we've exceeded the dropzone width
             if (posX - pWidth / 2 > bbox.max.x) continue
@@ -106,8 +105,8 @@ function ProductGroup({ dropzoneMesh, items = [] }) {
         }
       }
 
-      // Advance cursor: width of this group + its trailing spacing
-      cursorX += (facings * pWidth) + (spacing * 0.0254) // convert inches to meters
+      // Advance cursor: total width of facings + spacing between them + one trailing spacing
+      cursorX += (facings * pWidth) + (facings * sMeters)
     })
 
     return results

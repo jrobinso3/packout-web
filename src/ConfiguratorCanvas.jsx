@@ -1,5 +1,5 @@
 import { Canvas } from '@react-three/fiber'
-import { Environment, OrbitControls, ContactShadows, Grid } from '@react-three/drei'
+import { Environment, OrbitControls, ContactShadows, Grid, SoftShadows } from '@react-three/drei'
 import { Suspense, useRef, useEffect } from 'react'
 import { useThree } from '@react-three/fiber'
 import DisplayModel from './components/DisplayModel'
@@ -93,25 +93,26 @@ export default function ConfiguratorCanvas({
         }}
       >
         <color attach="background" args={['#0d0f12']} />
-
-        <ambientLight intensity={0.5} />
+        
+        <ambientLight intensity={0.2} />
         <directionalLight
-          position={[10, 20, 10]}
-          intensity={1.5}
+          position={[5, 12, 5]}
+          intensity={4.5}
           castShadow
           shadow-mapSize={[2048, 2048]}
-          shadow-camera-near={0.5}
-          shadow-camera-far={50}
-          shadow-camera-left={-10}
-          shadow-camera-right={10}
-          shadow-camera-top={10}
-          shadow-camera-bottom={-10}
-          shadow-bias={-0.0001}
+          shadow-camera-near={0.1}
+          shadow-camera-far={25}
+          shadow-camera-left={-5}
+          shadow-camera-right={5}
+          shadow-camera-top={5}
+          shadow-camera-bottom={-5}
+          shadow-bias={-0.0005}
+          shadow-normalBias={0.02}
         />
 
         <Suspense fallback={null}>
-          <Environment preset="warehouse" background blur={0.06} />
-          <DropController draggedProduct={draggedProduct} onDisplayDrop={onDisplayDrop} />
+          <Environment preset="warehouse" background blur={0.06} environmentIntensity={0.25} />
+          <DropController draggedProduct={draggedProduct} onDisplayDrop={onDisplayDrop} activeShelfId={activeShelfId} onSelectShelf={onSelectShelf} />
           {displayUrl && <DisplayModel url={displayUrl} onMaterialsReady={onMaterialsReady} />}
           {placements && <PlacementsRenderer placements={placements} />}
 
@@ -125,13 +126,13 @@ export default function ConfiguratorCanvas({
               cellColor="#00f0ff"
               sectionThickness={1.5}
               fadeStrength={5}
-              opacity={0.2}
+              opacity={0.15}
             />
             <ContactShadows
               resolution={1024}
               scale={20}
-              blur={2}
-              opacity={0.5}
+              blur={1.2}
+              opacity={0.85}
               far={10}
               color="#000000"
               position={[0, -1, 0]}
