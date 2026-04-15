@@ -1,10 +1,12 @@
 @import "tailwindcss";
 
 @theme {
-  --color-canvas-bg: #0d0f12;
-  --color-glass-bg: rgba(255, 255, 255, 0.05);
-  --color-glass-border: rgba(255, 255, 255, 0.1);
-  --color-accent: #00f0ff;
+  --color-canvas-bg: #f5f7f9;
+  --color-glass-bg: rgba(255, 255, 255, 0.7);
+  --color-glass-border: rgba(0, 0, 0, 0.1);
+  --color-text-main: #2d3436;
+  --color-text-dim: #636e72;
+  --color-accent: #0088ff;
   --font-sans: "Inter", system-ui, sans-serif;
 }
 
@@ -14,7 +16,7 @@ body, html, #root {
   width: 100%;
   height: 100%;
   background-color: var(--color-canvas-bg);
-  color: white;
+  color: var(--color-text-main);
   overflow: hidden;
   font-family: var(--font-sans);
 }
@@ -55,7 +57,7 @@ body, html, #root {
   background: transparent;
   border: none;
   cursor: pointer;
-  color: white;
+  color: var(--color-text-main);
   text-align: left;
 }
 
@@ -72,7 +74,7 @@ body, html, #root {
   flex: 1;
   font-size: 12px;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--color-text-main);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -89,7 +91,7 @@ body, html, #root {
 }
 
 .material-chevron {
-  color: #ffffff;
+  color: var(--color-text-main);
   flex-shrink: 0;
 }
 
@@ -109,7 +111,7 @@ body, html, #root {
 
 .mat-label {
   font-size: 11px;
-  color: #ffffff;
+  color: var(--color-text-main);
   width: 64px;
   flex-shrink: 0;
   font-weight: 500;
@@ -140,7 +142,7 @@ body, html, #root {
 .mat-hex {
   font-size: 11px;
   font-family: 'JetBrains Mono', 'Courier New', monospace;
-  color: #ffffff;
+  color: var(--color-text-main);
   letter-spacing: 0.04em;
 }
 
@@ -178,13 +180,13 @@ body, html, #root {
   transition: box-shadow 0.15s;
 }
 .mat-slider:hover::-webkit-slider-thumb {
-  box-shadow: 0 0 10px rgba(0, 240, 255, 0.9);
+  box-shadow: 0 0 10px rgba(0, 136, 255, 0.5);
 }
 
 .mat-value {
   font-size: 11px;
   font-family: 'JetBrains Mono', 'Courier New', monospace;
-  color: #ffffff;
+  color: var(--color-text-main);
   width: 32px;
   text-align: right;
   flex-shrink: 0;
@@ -330,7 +332,7 @@ body, html, #root {
   border: none;
   cursor: pointer;
   padding: 7px 10px;
-  color: rgba(255,255,255,1.0);
+  color: var(--color-text-main);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -351,7 +353,7 @@ body, html, #root {
 .mat-group-count {
   font-size: 9px;
   background: rgba(0, 240, 255, 0.15);
-  color: rgba(0, 240, 255, 0.8);
+  color: #ffffff;
   padding: 1px 5px;
   border-radius: 10px;
   font-weight: 700;
@@ -404,7 +406,7 @@ body, html, #root {
   background: rgba(255,255,255,0.1);
   border: 1px solid rgba(0, 240, 255, 0.5);
   border-radius: 4px;
-  color: #fff;
+  color: var(--color-text-main);
   font-size: 11px;
   font-family: inherit;
   text-align: right;
@@ -426,7 +428,7 @@ body, html, #root {
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: #ffffff;
+  color: var(--color-text-main);
   padding: 4px 8px;
   border: 1px dashed rgba(255,255,255,0.15);
   border-radius: 5px;
@@ -489,7 +491,7 @@ body, html, #root {
   border-radius: 50%;
   background: rgba(0,0,0,0.7);
   border: 1px solid rgba(255,255,255,0.2);
-  color: white;
+  color: var(--color-text-main);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -504,7 +506,7 @@ body, html, #root {
   background: rgba(255,255,255,0.07);
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: 5px;
-  color: white;
+  color: var(--color-text-main);
   font-size: 11px;
   font-family: inherit;
   padding: 4px 6px;

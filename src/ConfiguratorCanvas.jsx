@@ -1,7 +1,7 @@
-import { Canvas } from '@react-three/fiber'
-import { Environment, OrbitControls, ContactShadows, Grid, SoftShadows } from '@react-three/drei'
+import { Environment, OrbitControls, ContactShadows, Grid } from '@react-three/drei'
+import * as THREE from 'three'
 import { Suspense, useRef, useEffect } from 'react'
-import { useThree } from '@react-three/fiber'
+import { Canvas, useThree } from '@react-three/fiber'
 import DisplayModel from './components/DisplayModel'
 import DropController from './components/DropController'
 import PlacementsRenderer from './components/PlacementsRenderer'
@@ -84,7 +84,7 @@ export default function ConfiguratorCanvas({
   return (
     <div className="absolute inset-0 z-0">
       <Canvas
-        shadows
+        shadows={{ type: THREE.PCFSoftShadowMap }}
         camera={{ position: [2.5, 1, 4], fov: 22.6 }}
         gl={{
           preserveDrawingBuffer: true,
@@ -96,22 +96,23 @@ export default function ConfiguratorCanvas({
         
         <ambientLight intensity={0.2} />
         <directionalLight
-          position={[5, 12, 5]}
-          intensity={4.5}
+          position={[2, 8, 4]}
+          intensity={4.8}
           castShadow
-          shadow-mapSize={[2048, 2048]}
+          shadow-mapSize={[4096, 4096]}
           shadow-camera-near={0.1}
           shadow-camera-far={25}
-          shadow-camera-left={-5}
-          shadow-camera-right={5}
-          shadow-camera-top={5}
-          shadow-camera-bottom={-5}
-          shadow-bias={-0.0005}
-          shadow-normalBias={0.02}
+          shadow-camera-left={-2}
+          shadow-camera-right={2}
+          shadow-camera-top={2}
+          shadow-camera-bottom={-2}
+          shadow-bias={-0.0002}
+          shadow-normalBias={0.04}
+          shadow-radius={4}
         />
 
         <Suspense fallback={null}>
-          <Environment preset="warehouse" background blur={0.06} environmentIntensity={0.25} />
+          <Environment files="/packout-web/studios/studio_small_09_4k.exr" background blur={0.06} environmentIntensity={0.25} />
           <DropController draggedProduct={draggedProduct} onDisplayDrop={onDisplayDrop} activeShelfId={activeShelfId} onSelectShelf={onSelectShelf} />
           
           {/* Main Display Model Suspense */}
@@ -137,7 +138,7 @@ export default function ConfiguratorCanvas({
               opacity={0.15}
             />
             <ContactShadows
-              resolution={1024}
+              resolution={2048}
               scale={20}
               blur={1.2}
               opacity={0.85}

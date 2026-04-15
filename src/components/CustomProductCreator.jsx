@@ -7,8 +7,7 @@ const INCH_TO_M = 0.0254
 function DimInput({ label, value, onChange }) {
   return (
     <div className="flex flex-col gap-1">
--      <label className="text-[9px] font-bold uppercase tracking-widest text-gray-500">{label} (in)</label>
-+      <label className="text-[9px] font-bold uppercase tracking-widest text-white">{label} (in)</label>
+      <label className="text-[9px] font-bold uppercase tracking-widest text-text-dim">{label} (in)</label>
       <input
         type="number"
         min="0.01"
@@ -87,8 +86,8 @@ export default function CustomProductCreator({ onAdd }) {
         </div>
       ) : (
         <label className="cp-drop-zone">
-          <ImagePlus size={22} className="text-white" />
-          <span className="text-xs text-white mt-1">Upload product PNG</span>
+          <ImagePlus size={22} className="text-text-main" />
+          <span className="text-xs text-text-dim mt-1">Upload product PNG</span>
           <input
             ref={fileRef}
             type="file"
@@ -102,8 +101,7 @@ export default function CustomProductCreator({ onAdd }) {
       {/* Name and dimensions side-by-side for compactness */}
       <div className="flex flex-col gap-2 mt-1">
         <div className="flex flex-col gap-1">
--          <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Product Name</label>
-+          <label className="text-[10px] font-bold uppercase tracking-wider text-white">Product Name</label>
+          <label className="text-[10px] font-bold uppercase tracking-wider text-text-dim">Product Name</label>
           <input
             type="text"
             value={name}

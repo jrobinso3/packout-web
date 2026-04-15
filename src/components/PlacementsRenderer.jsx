@@ -136,7 +136,7 @@ function ProductGroup({ dropzoneMesh, items = [] }) {
               {product.geometry === 'cylinder' && <cylinderGeometry args={[radXZ, radXZ, pHeight - 0.002, 32]} />}
               {product.geometry === 'cone'     && <coneGeometry     args={[radXZ, pHeight - 0.002, 32]} />}
               {(!product.geometry || product.geometry === 'box') && <boxGeometry args={[pWidth - 0.002, pHeight - 0.002, pDepth - 0.002]} />}
-              <meshStandardMaterial color={product.color} roughness={0.1} metalness={0.8} />
+              <meshStandardMaterial color={product.color} roughness={0.8} metalness={0} />
             </mesh>
           </Suspense>
         )
