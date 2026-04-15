@@ -4,14 +4,53 @@ import * as THREE from 'three'
 
 // ─── Shared Logic ─────────────────────────────────────────────────────────────
 
-// Shared material to prevent overhead of hundreds of identical invisible materials.
 const sharedInvisibleMat = new THREE.MeshBasicMaterial({ visible: false })
 
 /**
- * Renders a batch of identical products using instancing.
- * This is the "memory container" that prevents WebGL from crashing on high counts.
+ * Renders a batch of custom textured products.
+ * Hooks are kept isolate to this component to avoid conditional hook violations.
  */
-function ProductBatch({ product, matrices }) {
+function CustomProductBatch({ product, matrices }) {
+  const meshRef = useRef()
+  const [w, h, d] = product.dimensions
+  
+  const texture = useLoader(THREE.TextureLoader, product.textureUrl)
+  texture.colorSpace = THREE.SRGBColorSpace
+
+  const materials = useMemo(() => [
+    sharedInvisibleMat, sharedInvisibleMat, sharedInvisibleMat, sharedInvisibleMat,
+    new THREE.MeshStandardMaterial({ 
+      map: texture, 
+      transparent: true, 
+      alphaTest: 0.5, // Stop transparent pixels from blocking depth
+      roughness: 0.6, 
+      side: THREE.DoubleSide 
+    }),
+    sharedInvisibleMat
+  ], [texture])
+
+  useEffect(() => {
+    if (!meshRef.current) return
+    matrices.forEach((matrix, i) => {
+      meshRef.current.setMatrixAt(i, matrix)
+    })
+    meshRef.current.instanceMatrix.needsUpdate = true
+  }, [matrices])
+
+  return (
+    <instancedMesh ref={meshRef} args={[null, null, matrices.length]} castShadow receiveShadow>
+      <boxGeometry args={[w, h, d]} />
+      {materials.map((mat, i) => (
+        <primitive key={i} object={mat} attach={`material-${i}`} />
+      ))}
+    </instancedMesh>
+  )
+}
+
+/**
+ * Renders a batch of standard demo shapes.
+ */
+function StandardProductBatch({ product, matrices }) {
   const meshRef = useRef()
   const [w, h, d] = product.dimensions
 
@@ -23,34 +62,6 @@ function ProductBatch({ product, matrices }) {
     meshRef.current.instanceMatrix.needsUpdate = true
   }, [matrices])
 
-  // ─── CUSTOM PRODUCT (Textured) ──────────────────────────────────────────────
-  if (product.isCustom) {
-    const texture = useLoader(THREE.TextureLoader, product.textureUrl)
-    texture.colorSpace = THREE.SRGBColorSpace
-
-    // One shared material array for all 100+ instances of this specific custom product.
-    const materials = useMemo(() => [
-      sharedInvisibleMat, sharedInvisibleMat, sharedInvisibleMat, sharedInvisibleMat,
-      new THREE.MeshStandardMaterial({ 
-        map: texture, 
-        transparent: true, 
-        roughness: 0.6, 
-        side: THREE.DoubleSide 
-      }),
-      sharedInvisibleMat
-    ], [texture])
-
-    return (
-      <instancedMesh ref={meshRef} args={[null, null, matrices.length]} castShadow receiveShadow>
-        <boxGeometry args={[w, h, d]} />
-        {materials.map((mat, i) => (
-          <primitive key={i} object={mat} attach={`material-${i}`} />
-        ))}
-      </instancedMesh>
-    )
-  }
-
-  // ─── STANDARD PRODUCT (Demo Shapes) ──────────────────────────────────────────
   const radXZ = Math.min(w, d) / 2
   let geometry
   if (product.geometry === 'sphere')   geometry = <sphereGeometry   args={[radXZ, 32, 16]} />
@@ -67,7 +78,6 @@ function ProductBatch({ product, matrices }) {
 }
 
 function ProductGroup({ dropzoneMesh, items = [] }) {
-  // 1. Group items by their product definition to enable instancing
   const groups = useMemo(() => {
     if (!items.length) return new Map()
     
@@ -83,7 +93,7 @@ function ProductGroup({ dropzoneMesh, items = [] }) {
     const localHeight = bbox.max.y - bbox.min.y
     const localDepth  = bbox.max.z - bbox.min.z
 
-    const map = new Map() // productId -> { product, matrices: [] }
+    const map = new Map()
     const dummy = new THREE.Object3D()
     const globalMatrix = new THREE.Matrix4()
 
@@ -126,7 +136,8 @@ function ProductGroup({ dropzoneMesh, items = [] }) {
       const spacingX = globalAutoFit ? globalAutoSpacingX : lsMeters
 
       for (let y = 0; y < countY; y++) {
-        for (let z = 0; z < countZ; z++) {
+        // Draw BACK to FRONT for correct transparency sorting
+        for (let z = countZ - 1; z >= 0; z--) {
           for (let x = 0; x < facings; x++) {
             const posX = bbox.min.x + accumulatedWidthLocal + (x * lpWidth) + (globalFacingCounter + x) * spacingX + lpWidth / 2
             if (posX - lpWidth / 2 > bbox.max.x + 0.005) continue
@@ -148,7 +159,13 @@ function ProductGroup({ dropzoneMesh, items = [] }) {
   return (
     <group>
       {Array.from(groups.values()).map(({ product, matrices }) => (
-        <ProductBatch key={product.id} product={product} matrices={matrices} />
+        <Suspense key={product.id} fallback={null}>
+          {product.isCustom ? (
+            <CustomProductBatch product={product} matrices={matrices} />
+          ) : (
+            <StandardProductBatch product={product} matrices={matrices} />
+          )}
+        </Suspense>
       ))}
     </group>
   )

@@ -26,7 +26,7 @@ export default function CustomProductCreator({ onAdd }) {
   const [name, setName]   = useState('')
   const [width, setWidth]   = useState('')
   const [height, setHeight] = useState('')
-  const [depth, setDepth]   = useState('0.5')
+  const [depth, setDepth]   = useState('')
   const fileRef = useRef()
 
   const handleFile = (e) => {
@@ -54,11 +54,12 @@ export default function CustomProductCreator({ onAdd }) {
       isCustom:   true,
     })
 
-    // Reset form (keep depth as default)
+    // Reset form
     setPreviewUrl(null)
     setName('')
     setWidth('')
     setHeight('')
+    setDepth('')
     if (fileRef.current) fileRef.current.value = ''
   }
 
@@ -68,6 +69,7 @@ export default function CustomProductCreator({ onAdd }) {
     setName('')
     setWidth('')
     setHeight('')
+    setDepth('')
     if (fileRef.current) fileRef.current.value = ''
   }
 

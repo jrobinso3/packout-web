@@ -46,7 +46,11 @@ function App() {
       newItems.push(newItem)
 
       // Initial Split Logic: Calculate capacity using TRUE WORLD dimensions
+      if (!mesh?.geometry) return prev
+      
       mesh.geometry.computeBoundingBox()
+      if (!mesh.geometry.boundingBox) return prev
+
       const worldScale = new THREE.Vector3()
       mesh.getWorldScale(worldScale)
 

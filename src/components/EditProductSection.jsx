@@ -1,6 +1,9 @@
-import { ChevronUp, ChevronDown, Trash2, Layers } from 'lucide-react'
+import { useState } from 'react'
+import { ChevronUp, ChevronDown, Trash2, Layers, GripVertical, Link } from 'lucide-react'
 
 export default function EditProductSection({ shelfId, placement, onUpdate }) {
+  const [draggedIdx, setDraggedIdx] = useState(null)
+  
   if (!placement) return null
 
   const { mesh, items } = placement
@@ -28,6 +31,39 @@ export default function EditProductSection({ shelfId, placement, onUpdate }) {
     onUpdate(shelfId, newItems)
   }
 
+  // ─── Drag and Drop Logic ───────────────────────────────────────────────────
+  
+  const handleDragStart = (e, index) => {
+    setDraggedIdx(index)
+    // Create a subtle ghost image
+    e.dataTransfer.effectAllowed = 'move'
+    // Give it a small delay so the 'dragging' class can apply
+    setTimeout(() => {
+      e.target.classList.add('opacity-40')
+    }, 0)
+  }
+
+  const handleDragEnd = (e) => {
+    e.target.classList.remove('opacity-40')
+    setDraggedIdx(null)
+  }
+
+  const handleDragOver = (e) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+  }
+
+  const handleDrop = (e, targetIdx) => {
+    e.preventDefault()
+    if (draggedIdx === null || draggedIdx === targetIdx) return
+
+    const newItems = [...items]
+    const [movedItem] = newItems.splice(draggedIdx, 1)
+    newItems.splice(targetIdx, 0, movedItem)
+    onUpdate(shelfId, newItems)
+    setDraggedIdx(null)
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-2 border-b border-white/10 pb-2 mb-2">
@@ -42,11 +78,26 @@ export default function EditProductSection({ shelfId, placement, onUpdate }) {
       ) : (
         <div className="space-y-3">
           {items.map((item, idx) => (
-            <div key={item.id} className="bg-black/5 border border-black/5 rounded-xl p-3 flex flex-col gap-3 relative group">
+            <div 
+              key={item.id} 
+              className={`bg-black/5 border border-black/5 rounded-xl p-3 flex flex-col gap-3 relative transition-all ${
+                draggedIdx === idx ? 'opacity-20 translate-x-1' : ''
+              }`}
+              draggable
+              onDragStart={(e) => handleDragStart(e, idx)}
+              onDragEnd={handleDragEnd}
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, idx)}
+            >
               
               {/* Header: Name and Move/Delete */}
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-2 overflow-hidden">
+                  {/* GRAB HANDLE */}
+                  <div className="cursor-grab active:cursor-grabbing p-0.5 text-text-dim/40 hover:text-accent transition-colors">
+                    <GripVertical size={16} />
+                  </div>
+
                   <div className="w-8 h-8 rounded-lg bg-white/10 flex-shrink-0 overflow-hidden border border-white/5">
                     {item.product.textureUrl ? (
                       <img src={item.product.textureUrl} className="w-full h-full object-contain" alt="" />
@@ -58,20 +109,6 @@ export default function EditProductSection({ shelfId, placement, onUpdate }) {
                 </div>
                 
                 <div className="flex items-center gap-1">
-                  <button 
-                    onClick={() => moveItem(idx, -1)}
-                    disabled={idx === 0}
-                    className="p-1 rounded bg-black/5 hover:bg-black/10 disabled:opacity-20 text-text-main"
-                  >
-                    <ChevronUp size={12} />
-                  </button>
-                  <button 
-                    onClick={() => moveItem(idx, 1)}
-                    disabled={idx === items.length - 1}
-                    className="p-1 rounded bg-black/5 hover:bg-black/10 disabled:opacity-20 text-text-main"
-                  >
-                    <ChevronDown size={12} />
-                  </button>
                   <button 
                     onClick={() => removeItem(item.id)}
                     className="p-1 rounded bg-red-500/20 hover:bg-red-500/40 text-red-400 ml-1"
@@ -121,9 +158,13 @@ export default function EditProductSection({ shelfId, placement, onUpdate }) {
                   </div>
                 </div>
 
+              </div>
+
+              {/* Toggles (Full Width) */}
+              <div className="flex flex-col gap-0.5 pt-1 border-t border-white/5 mt-0.5">
                 {/* Stacking Toggle */}
-                <div className="flex items-center justify-between bg-white/5 p-2 rounded-lg border border-white/5">
-                  <span className="text-[10px] font-bold text-text-dim">Stack High</span>
+                <div className="flex items-center justify-between bg-white/5 py-1 px-2 rounded-lg border border-white/5">
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-text-dim">Stack Product High</span>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input 
                       type="checkbox" 
@@ -131,24 +172,29 @@ export default function EditProductSection({ shelfId, placement, onUpdate }) {
                       checked={item.stackVertical}
                       onChange={(e) => updateItem(item.id, { stackVertical: e.target.checked })}
                     />
-                    <div className="w-8 h-4 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-accent after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-accent/40"></div>
+                    <div className="w-8 h-4 bg-black/40 border border-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-secondary after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-secondary/40"></div>
                   </label>
                 </div>
 
-                {/* Auto-Fit Toggle */}
-                <div className="flex items-center justify-between bg-white/5 p-2 rounded-lg border border-white/5">
-                  <span className="text-[10px] font-bold text-text-dim">Auto-Fit (W & D)</span>
+                {/* Auto-Fit Toggle (Shelf-Wide Linked) */}
+                <div className="flex items-center justify-between bg-white/5 py-1 px-2 rounded-lg border border-white/5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-text-dim">Auto-Fit</span>
+                    <Link size={10} className="text-secondary/60 translate-y-[0.5px]" />
+                  </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input 
                       type="checkbox" 
                       className="sr-only peer"
                       checked={item.autoFit}
-                      onChange={(e) => updateItem(item.id, { autoFit: e.target.checked })}
+                      onChange={(e) => {
+                        const newVal = e.target.checked
+                        onUpdate(shelfId, items.map(it => ({ ...it, autoFit: newVal })))
+                      }}
                     />
-                    <div className="w-8 h-4 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-secondary after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-secondary/40"></div>
+                    <div className="w-8 h-4 bg-black/40 border border-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-secondary after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-secondary/40"></div>
                   </label>
                 </div>
-
               </div>
             </div>
           ))}
