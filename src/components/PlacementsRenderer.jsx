@@ -78,9 +78,9 @@ function ProductGroup({ dropzoneMesh, items = [] }) {
       const countY = stackVertical ? Math.max(1, Math.floor(dropzoneHeight / pHeight)) : 1
       const countZ = Math.max(1, Math.floor(dropzoneDepth  / pDepth))
 
-      // Start at the bottom of the collider (min Y) plus half the product height (since it's a centered box)
+      // Start at the front edge of the shelf (max Z) minus half the product depth
+      const startZ = bbox.max.z - pDepth / 2
       const startY = bbox.min.y + pHeight / 2
-      const startZ = bbox.min.z + (dropzoneDepth - countZ * pDepth) / 2 + pDepth / 2
 
       for (let y = 0; y < countY; y++) {
         for (let z = 0; z < countZ; z++) {
@@ -91,7 +91,8 @@ function ProductGroup({ dropzoneMesh, items = [] }) {
             // Check if we've exceeded the dropzone width
             if (posX - pWidth / 2 > bbox.max.x) continue
 
-            dummy.position.set(posX, startY + y * pHeight, startZ + z * pDepth)
+            // Subtract z * pDepth to stack rows DEEPER into the shelf (moving away from front edge)
+            dummy.position.set(posX, startY + y * pHeight, startZ - z * pDepth)
             dummy.updateMatrix()
             globalMatrix.copy(dropzoneMesh.matrixWorld).multiply(dummy.matrix)
 
