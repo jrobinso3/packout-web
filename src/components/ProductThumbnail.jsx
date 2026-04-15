@@ -6,14 +6,10 @@ function ProductMesh({ product }) {
 
   const geometry = (() => {
     switch (product.geometry) {
-      case 'sphere':
-        return <sphereGeometry args={[radXZ, 32, 16]} />
-      case 'cylinder':
-        return <cylinderGeometry args={[radXZ, radXZ, h, 32]} />
-      case 'cone':
-        return <coneGeometry args={[radXZ, h, 32]} />
-      default:
-        return <boxGeometry args={[w, h, d]} />
+      case 'sphere':   return <sphereGeometry   args={[radXZ, 32, 16]} />
+      case 'cylinder': return <cylinderGeometry args={[radXZ, radXZ, h, 32]} />
+      case 'cone':     return <coneGeometry     args={[radXZ, h, 32]} />
+      default:         return <boxGeometry      args={[w, h, d]} />
     }
   })()
 
@@ -25,7 +21,23 @@ function ProductMesh({ product }) {
   )
 }
 
+// Custom products use their PNG as a flat image thumbnail — no 3D canvas needed.
+function CustomThumbnail({ product }) {
+  return (
+    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <img
+        src={product.textureUrl}
+        alt={product.name}
+        style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+      />
+    </div>
+  )
+}
+
 export default function ProductThumbnail({ product }) {
+  // Short-circuit for custom standee products — just show the PNG
+  if (product.isCustom) return <CustomThumbnail product={product} />
+
   const [w, h, d] = product.dimensions
   const radius = Math.sqrt(w * w + h * h + d * d) / 2
   const fov = 20
