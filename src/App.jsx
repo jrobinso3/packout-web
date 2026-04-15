@@ -3,8 +3,8 @@ import ConfiguratorCanvas from './ConfiguratorCanvas'
 import Sidebar from './components/Sidebar'
 
 function App() {
-  // Default to the floorstand model without spaces
-  const [displayUrl, setDisplayUrl] = useState('/displays/Floorstand_3S.glb')
+  // Default to the floorstand model without spaces, prepended by the Vite base URL for correct asset loading on GitHub Pages.
+  const [displayUrl, setDisplayUrl] = useState(`${import.meta.env.BASE_URL}displays/Floorstand_3S.glb`)
 
   // Drag and Drop shared state
   const [draggedProduct, setDraggedProduct] = useState(null)
