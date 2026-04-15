@@ -265,13 +265,34 @@ body, html, #root {
   pointer-events: none;
 }
 
-/* ─── Collapsible sidebar sections ───────────────────────────── */
-.sidebar-section {
-  border-top: 1px solid rgba(255,255,255,0.08);
-  padding-top: 4px;
+/* ─── Collapsible sidebar categories ─────────────────────────── */
+.sidebar-category {
+  margin-bottom: 32px;
 }
-.sidebar-section:first-child {
-  border-top: none;
+.sidebar-category-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 0;
+  transition: opacity 0.2s;
+}
+.sidebar-category-hdr:hover {
+  opacity: 0.8;
+}
+.sidebar-category-body {
+  /* Spacing handled by Tailwind pl-2 ml-4 etc in JSX */
+}
+
+/* ─── Collapsible sidebar sub-sections ───────────────────────── */
+.sidebar-section {
+  margin-bottom: 24px;
+}
+.sidebar-section:last-child {
+  margin-bottom: 0;
 }
 .sidebar-section-hdr {
   display: flex;
@@ -281,7 +302,7 @@ body, html, #root {
   background: none;
   border: none;
   cursor: pointer;
-  padding: 8px 2px;
+  padding: 4px 0;
   gap: 6px;
   border-radius: 6px;
   transition: background 0.15s;
@@ -290,7 +311,7 @@ body, html, #root {
   background: rgba(255,255,255,0.04);
 }
 .sidebar-section-body {
-  padding-bottom: 6px;
+  padding-bottom: 2px;
 }
 
 /* ─── Material groups (one per mesh object) ───────────────────── */

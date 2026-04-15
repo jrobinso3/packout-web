@@ -73,6 +73,8 @@ export default function ConfiguratorCanvas({
   draggedProduct,
   onDisplayDrop,
   placements,
+  activeShelfId,
+  onSelectShelf,
   onMaterialsReady,
   onExportReady,
 }) {

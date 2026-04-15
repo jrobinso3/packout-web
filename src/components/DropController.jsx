@@ -3,20 +3,55 @@ import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 
 const DEFAULT_COLOR = new THREE.Color(0x00f0ff)
-const HOVER_COLOR   = new THREE.Color(0xffffff)
+const HOVER_COLOR   = new THREE.Color(0x00ffff)
+const ACTIVE_COLOR  = new THREE.Color(0xffffff)
 const DEFAULT_OPACITY = 0.2
-const HOVER_OPACITY   = 0.7
+const HOVER_OPACITY   = 0.5
+const ACTIVE_OPACITY  = 0.8
 
-export default function DropController({ draggedProduct, onDisplayDrop }) {
+export default function DropController({ draggedProduct, onDisplayDrop, activeShelfId, onSelectShelf }) {
   const { gl, camera, scene } = useThree()
 
   // Refs let stable event handlers always read the latest prop values
   const draggedProductRef = useRef(draggedProduct)
   const onDisplayDropRef  = useRef(onDisplayDrop)
+  const onSelectShelfRef   = useRef(onSelectShelf)
+  const activeShelfIdRef  = useRef(activeShelfId)
   const hoveredMeshRef    = useRef(null)
 
   useEffect(() => { draggedProductRef.current = draggedProduct }, [draggedProduct])
   useEffect(() => { onDisplayDropRef.current  = onDisplayDrop  }, [onDisplayDrop])
+  useEffect(() => { onSelectShelfRef.current   = onSelectShelf   }, [onSelectShelf])
+  useEffect(() => { activeShelfIdRef.current  = activeShelfId  }, [activeShelfId])
+
+  // Sync visual states when activeShelfId changes externally
+  useEffect(() => {
+    scene.traverse(child => {
+      if (child.userData.isDropzone) {
+        const isHovered = hoveredMeshRef.current === child
+        const isActive  = activeShelfId === child.uuid
+        const group = child.userData.visualGroup ?? child.parent
+        
+        let color = DEFAULT_COLOR
+        let opacity = DEFAULT_OPACITY
+
+        if (isActive) {
+          color = ACTIVE_COLOR
+          opacity = ACTIVE_OPACITY
+        } else if (isHovered) {
+          color = HOVER_COLOR
+          opacity = HOVER_OPACITY
+        }
+
+        group.traverse(v => {
+          if (v.userData.isDropzoneVisual) {
+            v.material.color.copy(color)
+            v.material.opacity = opacity
+          }
+        })
+      }
+    })
+  }, [activeShelfId, scene])
 
   useEffect(() => {
     // ── Helpers ─────────────────────────────────────────────────────────────
@@ -29,9 +64,6 @@ export default function DropController({ draggedProduct, onDisplayDrop }) {
       }
     }
 
-    // Returns the dropzone mesh closest to (x, y) in NDC, or null.
-    // When multiple dropzones overlap along the ray we pick by which center
-    // projects nearest to the cursor on screen — more intuitive than depth order.
     const findBestDropzone = (x, y) => {
       const raycaster = new THREE.Raycaster()
       raycaster.setFromCamera({ x, y }, camera)
@@ -58,7 +90,6 @@ export default function DropController({ draggedProduct, onDisplayDrop }) {
       return best
     }
 
-    // Update every isDropzoneVisual mesh inside a group
     const applyToVisuals = (group, color, opacity) => {
       if (!group) return
       group.traverse(child => {
@@ -69,21 +100,24 @@ export default function DropController({ draggedProduct, onDisplayDrop }) {
       })
     }
 
-    // Swap the visual siblings of a collider between default and hover appearance.
-    // The collider itself is invisible — we highlight its isDropzoneVisual siblings
-    // inside the same parent group.
     const setHover = (collider) => {
       const prev = hoveredMeshRef.current
       if (prev === collider) return
 
+      // Restore previous mesh
       if (prev) {
         const group = prev.userData.visualGroup ?? prev.parent
-        applyToVisuals(group, DEFAULT_COLOR, DEFAULT_OPACITY)
+        const isActive = activeShelfIdRef.current === prev.uuid
+        applyToVisuals(group, isActive ? ACTIVE_COLOR : DEFAULT_COLOR, isActive ? ACTIVE_OPACITY : DEFAULT_OPACITY)
       }
+
+      // Highlight new mesh
       if (collider) {
         const group = collider.userData.visualGroup ?? collider.parent
-        applyToVisuals(group, HOVER_COLOR, HOVER_OPACITY)
+        const isActive = activeShelfIdRef.current === collider.uuid
+        applyToVisuals(group, isActive ? ACTIVE_COLOR : HOVER_COLOR, isActive ? ACTIVE_OPACITY : HOVER_OPACITY)
       }
+
       hoveredMeshRef.current = collider
     }
 
@@ -96,14 +130,19 @@ export default function DropController({ draggedProduct, onDisplayDrop }) {
       setHover(findBestDropzone(x, y))
     }
 
+    const handleMouseClick = (e) => {
+      const { x, y } = getNDC(e)
+      const mesh = findBestDropzone(x, y)
+      if (mesh) {
+        onSelectShelfRef.current?.(mesh.uuid)
+      } else {
+        onSelectShelfRef.current?.(null)
+      }
+    }
+
     const handleDragOver = (e) => {
-      // Always preventDefault so the browser keeps the canvas as an active
-      // drop target. Never use dropEffect='none' here — the first dragover
-      // can fire before draggedProductRef is populated (React state is async),
-      // and some browsers will cancel the entire drag if they see 'none' first.
       e.preventDefault()
       e.dataTransfer.dropEffect = 'copy'
-
       const { x, y } = getNDC(e)
       setHover(findBestDropzone(x, y))
     }
@@ -111,9 +150,7 @@ export default function DropController({ draggedProduct, onDisplayDrop }) {
     const handleDrop = (e) => {
       e.preventDefault()
       clearHover()
-
       if (!draggedProductRef.current) return
-
       const { x, y } = getNDC(e)
       const mesh = findBestDropzone(x, y)
       if (mesh) {
@@ -123,6 +160,7 @@ export default function DropController({ draggedProduct, onDisplayDrop }) {
 
     gl.domElement.addEventListener('mousemove',  handleMouseMove)
     gl.domElement.addEventListener('mouseleave', clearHover)
+    gl.domElement.addEventListener('click',      handleMouseClick)
     gl.domElement.addEventListener('dragover',   handleDragOver)
     gl.domElement.addEventListener('dragleave',  clearHover)
     gl.domElement.addEventListener('drop',       handleDrop)
@@ -130,6 +168,7 @@ export default function DropController({ draggedProduct, onDisplayDrop }) {
     return () => {
       gl.domElement.removeEventListener('mousemove',  handleMouseMove)
       gl.domElement.removeEventListener('mouseleave', clearHover)
+      gl.domElement.removeEventListener('click',      handleMouseClick)
       gl.domElement.removeEventListener('dragover',   handleDragOver)
       gl.domElement.removeEventListener('dragleave',  clearHover)
       gl.domElement.removeEventListener('drop',       handleDrop)

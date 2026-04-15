@@ -3,37 +3,70 @@ import ConfiguratorCanvas from './ConfiguratorCanvas'
 import Sidebar from './components/Sidebar'
 
 function App() {
-  // Default to the floorstand model without spaces, prepended by the Vite base URL for correct asset loading on GitHub Pages.
   const [displayUrl, setDisplayUrl] = useState(`${import.meta.env.BASE_URL}displays/Floorstand_3S.glb`)
-
-  // Drag and Drop shared state
   const [draggedProduct, setDraggedProduct] = useState(null)
+  
+  // Track placements as { [uuid]: { mesh, items: [] } }
+  // Each item: { id, product, facings, stackVertical, spacing }
   const [placements, setPlacements] = useState({})
-
-  // Materials extracted from the currently-loaded GLB
+  const [activeShelfId, setActiveShelfId] = useState(null)
+  
   const [displayMaterials, setDisplayMaterials] = useState([])
-
-  // Export function reference — populated by ExportCapture inside the Canvas
   const exportFnRef = useRef(null)
+
   const handleExportReady = useCallback((fn) => { exportFnRef.current = fn }, [])
   const handleExport = useCallback(() => { exportFnRef.current?.() }, [])
 
   const handleSetDisplayUrl = (url) => {
     setDisplayUrl(url)
-    setPlacements({})        // clear drops when switching displays
-    setDisplayMaterials([])  // clear stale material list
+    setPlacements({})
+    setDisplayMaterials([])
+    setActiveShelfId(null)
   }
 
+  const handleSelectShelf = useCallback((id) => {
+    setActiveShelfId(id)
+  }, [])
+
   const handleDisplayDrop = (mesh, product) => {
-    setPlacements((prev) => ({
-      ...prev,
-      // Use the UUID of the THREE.js mesh as the key
-      [mesh.uuid]: {
+    setPlacements((prev) => {
+      const existing = prev[mesh.uuid] || { mesh, items: [] }
+      const newItems = [...existing.items]
+      
+      const newItem = {
+        id: `item-${Date.now()}`,
         product,
-        mesh
+        facings: 1,
+        stackVertical: false,
+        spacing: 0
       }
-    }))
+
+      newItems.push(newItem)
+
+      // Initial Split Logic: Attempt to give each product group an equal share of the width
+      mesh.geometry.computeBoundingBox()
+      const shelfWidth = mesh.geometry.boundingBox.max.x - mesh.geometry.boundingBox.min.x
+      const targetWidthPerProduct = shelfWidth / newItems.length
+
+      newItems.forEach(item => {
+        item.facings = Math.max(1, Math.floor(targetWidthPerProduct / item.product.dimensions[0]))
+      })
+
+      return {
+        ...prev,
+        [mesh.uuid]: { ...existing, items: newItems }
+      }
+    })
+    
+    setActiveShelfId(mesh.uuid)
   }
+
+  const handleUpdateShelf = useCallback((shelfId, newItems) => {
+    setPlacements(prev => ({
+      ...prev,
+      [shelfId]: { ...prev[shelfId], items: newItems }
+    }))
+  }, [])
 
   const handleMaterialsReady = useCallback((mats) => {
     setDisplayMaterials(mats)
@@ -46,6 +79,8 @@ function App() {
         draggedProduct={draggedProduct}
         onDisplayDrop={handleDisplayDrop}
         placements={placements}
+        activeShelfId={activeShelfId}
+        onSelectShelf={handleSelectShelf}
         onMaterialsReady={handleMaterialsReady}
         onExportReady={handleExportReady}
       />
@@ -54,6 +89,10 @@ function App() {
         setDraggedProduct={setDraggedProduct}
         displayMaterials={displayMaterials}
         onExport={handleExport}
+        placements={placements}
+        activeShelfId={activeShelfId}
+        onSelectShelf={handleSelectShelf}
+        onUpdateShelf={handleUpdateShelf}
       />
     </main>
   )

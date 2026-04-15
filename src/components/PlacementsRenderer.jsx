@@ -51,8 +51,10 @@ function TexturedBox({ dimensions, textureUrl }) {
 
 // ─── ProductGroup ─────────────────────────────────────────────────────────────
 
-function ProductGroup({ dropzoneMesh, product }) {
+function ProductGroup({ dropzoneMesh, items = [] }) {
   const transforms = useMemo(() => {
+    if (!items.length) return []
+    
     dropzoneMesh.geometry.computeBoundingBox()
     const bbox = dropzoneMesh.geometry.boundingBox
 
@@ -60,57 +62,74 @@ function ProductGroup({ dropzoneMesh, product }) {
     const dropzoneHeight = bbox.max.y - bbox.min.y
     const dropzoneDepth  = bbox.max.z - bbox.min.z
 
-    const [pWidth, pHeight, pDepth] = product.dimensions
-
-    const countX = Math.max(1, Math.floor(dropzoneWidth  / pWidth))
-    const countY = Math.max(1, Math.floor(dropzoneHeight / pHeight))
-    const countZ = Math.max(1, Math.floor(dropzoneDepth  / pDepth))
-
-    const startX = bbox.min.x + (dropzoneWidth  - countX * pWidth)  / 2 + pWidth  / 2
-    const startY = bbox.min.y + pHeight / 2
-    const startZ = bbox.min.z + (dropzoneDepth  - countZ * pDepth)  / 2 + pDepth  / 2
-
     const results = []
     const dummy        = new THREE.Object3D()
     const globalMatrix = new THREE.Matrix4()
 
-    for (let y = 0; y < countY; y++) {
-      for (let z = 0; z < countZ; z++) {
-        for (let x = 0; x < countX; x++) {
-          dummy.position.set(startX + x * pWidth, startY + y * pHeight, startZ + z * pDepth)
-          dummy.updateMatrix()
-          globalMatrix.copy(dropzoneMesh.matrixWorld).multiply(dummy.matrix)
+    // Start at the left edge of the dropzone
+    let cursorX = bbox.min.x
 
-          const pos  = new THREE.Vector3()
-          const quat = new THREE.Quaternion()
-          const scale = new THREE.Vector3()
-          globalMatrix.decompose(pos, quat, scale)
-          results.push({ pos, quat, scale })
+    items.forEach((item) => {
+      const { product, facings, stackVertical, spacing } = item
+      const [pWidth, pHeight, pDepth] = product.dimensions
+
+      // Use the cursorX to position the start of this product's block
+      const startX = cursorX + pWidth / 2
+      
+      // Calculate how many fit in Y and Z
+      const countY = stackVertical ? Math.max(1, Math.floor(dropzoneHeight / pHeight)) : 1
+      const countZ = Math.max(1, Math.floor(dropzoneDepth  / pDepth))
+
+      // Vertical centering if not stacking
+      const startY = stackVertical ? (bbox.min.y + pHeight / 2) : (bbox.min.y + dropzoneHeight / 2)
+      const startZ = bbox.min.z + (dropzoneDepth - countZ * pDepth) / 2 + pDepth / 2
+
+      for (let y = 0; y < countY; y++) {
+        for (let z = 0; z < countZ; z++) {
+          for (let x = 0; x < facings; x++) {
+            const posX = startX + x * pWidth
+            
+            // Check if we've exceeded the dropzone width
+            if (posX - pWidth / 2 > bbox.max.x) continue
+
+            dummy.position.set(posX, startY + y * pHeight, startZ + z * pDepth)
+            dummy.updateMatrix()
+            globalMatrix.copy(dropzoneMesh.matrixWorld).multiply(dummy.matrix)
+
+            const pos  = new THREE.Vector3()
+            const quat = new THREE.Quaternion()
+            const scale = new THREE.Vector3()
+            globalMatrix.decompose(pos, quat, scale)
+            
+            results.push({ pos, quat, scale, product, id: `${item.id}-${x}-${y}-${z}` })
+          }
         }
       }
-    }
+
+      // Advance cursor: width of this group + its trailing spacing
+      cursorX += (facings * pWidth) + (spacing * 0.0254) // convert inches to meters
+    })
 
     return results
-  }, [dropzoneMesh, product])
-
-  const [pWidth, pHeight, pDepth] = product.dimensions
-  const radXZ = Math.min(pWidth, pDepth) / 2 - 0.001
+  }, [dropzoneMesh, items])
 
   return (
     <group>
-      {transforms.map((t, i) => {
-        // ── Custom standee product ──────────────────────────────────────────
+      {transforms.map((t) => {
+        const { product, pos, quat, scale, id } = t
+        const [pWidth, pHeight, pDepth] = product.dimensions
+        const radXZ = Math.min(pWidth, pDepth) / 2 - 0.001
+
         if (product.isCustom) {
           return (
-            <group key={i} position={t.pos} quaternion={t.quat} scale={t.scale}>
+            <group key={id} position={pos} quaternion={quat} scale={scale}>
               <TexturedBox dimensions={product.dimensions} textureUrl={product.textureUrl} />
             </group>
           )
         }
 
-        // ── Demo shape ─────────────────────────────────────────────────────
         return (
-          <mesh key={i} position={t.pos} quaternion={t.quat} scale={t.scale} castShadow receiveShadow>
+          <mesh key={id} position={pos} quaternion={quat} scale={scale} castShadow receiveShadow>
             {product.geometry === 'sphere'   && <sphereGeometry   args={[radXZ, 32, 16]} />}
             {product.geometry === 'cylinder' && <cylinderGeometry args={[radXZ, radXZ, pHeight - 0.002, 32]} />}
             {product.geometry === 'cone'     && <coneGeometry     args={[radXZ, pHeight - 0.002, 32]} />}
@@ -132,7 +151,7 @@ export default function PlacementsRenderer({ placements }) {
         <ProductGroup
           key={uuid}
           dropzoneMesh={placement.mesh}
-          product={placement.product}
+          items={placement.items}
         />
       ))}
     </group>
