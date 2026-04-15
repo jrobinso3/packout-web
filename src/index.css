@@ -33,3 +33,387 @@ body, html, #root {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.3);
 }
+
+/* ─── Material Editor ──────────────────────────────────────── */
+.material-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+.material-card:hover {
+  border-color: rgba(0, 240, 255, 0.25);
+}
+
+.material-card-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: white;
+  text-align: left;
+}
+
+.material-swatch {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  border: 1px solid rgba(255,255,255,0.2);
+  box-shadow: 0 0 6px rgba(0,0,0,0.5);
+}
+
+.material-name {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.85);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.material-type-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(0, 240, 255, 0.1);
+  color: #00f0ff;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.material-chevron {
+  color: rgba(255, 255, 255, 0.4);
+  flex-shrink: 0;
+}
+
+.material-controls {
+  padding: 4px 10px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+
+.mat-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mat-label {
+  font-size: 11px;
+  color: rgba(255,255,255,0.45);
+  width: 64px;
+  flex-shrink: 0;
+  font-weight: 500;
+}
+
+/* Color picker */
+.mat-color-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+.mat-color-input {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 32px;
+  height: 22px;
+  border-radius: 5px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  overflow: hidden;
+}
+.mat-color-input::-webkit-color-swatch-wrapper { padding: 0; }
+.mat-color-input::-webkit-color-swatch { border: none; border-radius: 4px; }
+
+.mat-hex {
+  font-size: 11px;
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  color: rgba(255,255,255,0.5);
+  letter-spacing: 0.04em;
+}
+
+/* Sliders */
+.mat-slider-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.mat-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(
+    to right,
+    #00f0ff var(--pct, 0%),
+    rgba(255, 255, 255, 0.12) var(--pct, 0%)
+  );
+  outline: none;
+  cursor: pointer;
+}
+.mat-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 0 6px rgba(0, 240, 255, 0.6);
+  cursor: pointer;
+  transition: box-shadow 0.15s;
+}
+.mat-slider:hover::-webkit-slider-thumb {
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.9);
+}
+
+.mat-value {
+  font-size: 11px;
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  color: rgba(255,255,255,0.5);
+  width: 32px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* ─── Texture Strip ─────────────────────────────────────────── */
+.mat-tex-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 4px 0 6px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  margin-bottom: 2px;
+}
+
+.mat-tex-thumb {
+  position: relative;
+  width: 54px;
+  height: 54px;
+  border-radius: 6px;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 1px solid rgba(255,255,255,0.1);
+  cursor: default;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.mat-tex-thumb:hover {
+  border-color: rgba(0, 240, 255, 0.5);
+  box-shadow: 0 0 8px rgba(0, 240, 255, 0.3);
+}
+
+.mat-tex-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  image-rendering: auto;
+}
+
+.mat-tex-label {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0,0,0,0.75);
+  color: rgba(255,255,255,0.9);
+  font-size: 9px;
+  font-weight: 700;
+  text-align: center;
+  padding: 2px 0;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.mat-tex-label-visible {
+  opacity: 1;
+}
+
+/* ─── Map Mix slider variant ─────────────────────────────────── */
+/* Track shows cyan fill on the left (full texture) fading to a  */
+/* subtle stripe pattern on the right (pure base color).          */
+.mat-slider-mapmix {
+  background:
+    linear-gradient(to right, #00f0ff var(--pct, 100%), transparent var(--pct, 100%)),
+    repeating-linear-gradient(
+      90deg,
+      rgba(255,255,255,0.1) 0px, rgba(255,255,255,0.1) 2px,
+      transparent 2px, transparent 8px
+    );
+}
+
+/* White overlay on the albedo thumbnail that previews map mix level */
+.mat-tex-mix-overlay {
+  position: absolute;
+  inset: 0;
+  background: white;
+  pointer-events: none;
+}
+
+/* ─── Collapsible sidebar sections ───────────────────────────── */
+.sidebar-section {
+  border-top: 1px solid rgba(255,255,255,0.08);
+  padding-top: 4px;
+}
+.sidebar-section:first-child {
+  border-top: none;
+}
+.sidebar-section-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px 2px;
+  gap: 6px;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+.sidebar-section-hdr:hover {
+  background: rgba(255,255,255,0.04);
+}
+.sidebar-section-body {
+  padding-bottom: 6px;
+}
+
+/* ─── Material groups (one per mesh object) ───────────────────── */
+.mat-group {
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+.mat-group-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  background: rgba(255,255,255,0.04);
+  border: none;
+  cursor: pointer;
+  padding: 7px 10px;
+  color: rgba(255,255,255,0.7);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition: background 0.15s;
+}
+.mat-group-header:hover {
+  background: rgba(255,255,255,0.08);
+}
+.mat-group-icon {
+  color: rgba(0, 240, 255, 0.6);
+  flex-shrink: 0;
+}
+.mat-group-name {
+  flex: 1;
+  text-align: left;
+}
+.mat-group-count {
+  font-size: 9px;
+  background: rgba(0, 240, 255, 0.15);
+  color: rgba(0, 240, 255, 0.8);
+  padding: 1px 5px;
+  border-radius: 10px;
+  font-weight: 700;
+}
+.mat-group-cards {
+  padding: 4px 6px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+
+/* ─── Header thumbnail (shows blend preview in collapsed state) ── */
+.mat-header-thumb-wrap {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  border-radius: 5px;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 1px solid rgba(255,255,255,0.15);
+}
+.mat-header-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.mat-header-thumb-overlay {
+  position: absolute;
+  inset: 0;
+  background: white;
+  pointer-events: none;
+}
+
+/* ─── Editable numeric value ─────────────────────────────────── */
+.mat-value-editable {
+  cursor: text;
+  text-decoration: underline dotted rgba(255,255,255,0.3);
+  min-width: 36px;
+  text-align: right;
+  user-select: none;
+  transition: color 0.15s;
+}
+.mat-value-editable:hover {
+  color: #00f0ff;
+}
+.mat-editable-input {
+  width: 44px;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(0, 240, 255, 0.5);
+  border-radius: 4px;
+  color: #fff;
+  font-size: 11px;
+  font-family: inherit;
+  text-align: right;
+  padding: 1px 4px;
+  outline: none;
+}
+.mat-editable-input:focus {
+  border-color: #00f0ff;
+  box-shadow: 0 0 0 2px rgba(0, 240, 255, 0.2);
+}
+
+/* ─── Replace Artwork upload button ─────────────────────────── */
+.mat-upload-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.45);
+  padding: 4px 8px;
+  border: 1px dashed rgba(255,255,255,0.15);
+  border-radius: 5px;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  margin-top: 2px;
+}
+.mat-upload-label:hover {
+  color: #00f0ff;
+  border-color: rgba(0, 240, 255, 0.4);
+  background: rgba(0, 240, 255, 0.05);
+}

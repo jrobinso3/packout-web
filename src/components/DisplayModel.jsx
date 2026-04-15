@@ -2,12 +2,31 @@ import { useGLTF } from '@react-three/drei'
 import { useMemo } from 'react'
 import * as THREE from 'three'
 
-export default function DisplayModel({ url }) {
+// Capitalize and pretty-print mesh names: "shelf1" → "Shelf 1", "floorstand" → "Floorstand"
+function prettifyName(name) {
+  return name
+    .replace(/_/g, ' ')
+    .replace(/([a-z])(\d)/g, '$1 $2') // "shelf1" → "shelf 1"
+    .replace(/\b\w/g, c => c.toUpperCase())
+    .trim()
+}
+
+export default function DisplayModel({ url, onMaterialsReady }) {
   const { scene } = useGLTF(url)
 
   // We mutate the pristine scene directly instead of cloning it.
   // Cloning scenes in ThreeJS often strips complex PBR textures or nodes!
   useMemo(() => {
+    // groupsMap: meshName → Map<uuid, entry>
+    // This lets the UI organise material cards by which object they belong to.
+    const groupsMap = new Map()
+
+    const addToGroup = (meshName, entry) => {
+      if (!groupsMap.has(meshName)) groupsMap.set(meshName, new Map())
+      const g = groupsMap.get(meshName)
+      if (!g.has(entry.uuid)) g.set(entry.uuid, entry)
+    }
+
     scene.traverse((child) => {
       if (child.isMesh) {
         const n = child.name.toLowerCase()
@@ -39,24 +58,53 @@ export default function DisplayModel({ url }) {
           // Assure the original materials cast and receive shadows properly
           child.castShadow = true
           child.receiveShadow = true
-          
+
           if (child.material) {
             // Clone the material to avoid shared cache mutations across HMR reloads
-            // This prevents the 'WebGL: INVALID_OPERATION: useProgram: program not valid' error
+            const processMat = (mat) => {
+              const newMat = mat.clone()
+              newMat.side = THREE.DoubleSide
+              return newMat
+            }
+
+            // Group key = Blender object name, which is the parent Group node.
+            // Multi-material objects export as:
+            //   Group "floorstand" → Mesh "floorstand", Mesh "floorstand_1", ...
+            // Using parent.name collapses all primitives under one heading.
+            const meshName = child.parent?.name || child.name || 'unnamed'
+
             if (Array.isArray(child.material)) {
-               child.material = child.material.map(mat => {
-                 const newMat = mat.clone()
-                 newMat.side = THREE.DoubleSide
-                 return newMat
-               })
+              child.material = child.material.map(processMat)
+              child.material.forEach(mat => {
+                addToGroup(meshName, {
+                  uuid: mat.uuid,
+                  name: mat.name || child.name || 'Unnamed',
+                  material: mat,
+                })
+              })
             } else {
-               child.material = child.material.clone()
-               child.material.side = THREE.DoubleSide
+              child.material = processMat(child.material)
+              const mat = child.material
+              addToGroup(meshName, {
+                uuid: mat.uuid,
+                name: mat.name || child.name || 'Unnamed',
+                material: mat,
+              })
             }
           }
         }
       }
     })
+
+    // Convert to array of { groupName, label, materials[] }
+    if (onMaterialsReady) {
+      const groups = Array.from(groupsMap.entries()).map(([meshName, matsMap]) => ({
+        groupName: meshName,
+        label: prettifyName(meshName),
+        materials: Array.from(matsMap.values()),
+      }))
+      onMaterialsReady(groups)
+    }
   }, [scene])
 
   return <primitive object={scene} position={[0, -1, 0]} />
