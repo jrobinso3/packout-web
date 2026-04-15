@@ -113,8 +113,16 @@ export default function ConfiguratorCanvas({
         <Suspense fallback={null}>
           <Environment preset="warehouse" background blur={0.06} environmentIntensity={0.25} />
           <DropController draggedProduct={draggedProduct} onDisplayDrop={onDisplayDrop} activeShelfId={activeShelfId} onSelectShelf={onSelectShelf} />
-          {displayUrl && <DisplayModel url={displayUrl} onMaterialsReady={onMaterialsReady} />}
-          {placements && <PlacementsRenderer placements={placements} />}
+          
+          {/* Main Display Model Suspense */}
+          <Suspense fallback={null}>
+            {displayUrl && <DisplayModel url={displayUrl} onMaterialsReady={onMaterialsReady} />}
+          </Suspense>
+
+          {/* Independent Product Suspense — prevents whole-scene crashing on new texture load */}
+          <Suspense fallback={null}>
+            {placements && <PlacementsRenderer placements={placements} />}
+          </Suspense>
 
           {/* Scene helpers — hidden during PNG export */}
           <group ref={helperGroupRef}>

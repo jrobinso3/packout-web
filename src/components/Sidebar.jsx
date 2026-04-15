@@ -15,7 +15,9 @@ function SidebarSection({ title, defaultOpen = true, children }) {
         <span className="text-[11px] font-black uppercase tracking-widest text-white/50">{title}</span>
         {open ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
       </button>
-      {open && <div className="sidebar-section-body">{children}</div>}
+      <div className={open ? '' : 'hidden'}>
+        <div className="sidebar-section-body">{children}</div>
+      </div>
     </div>
   )
 }
@@ -37,7 +39,11 @@ function SidebarCategory({ title, icon: Icon, defaultOpen = true, children }) {
           <ChevronDown size={16} className="text-white/40" />
         </div>
       </button>
-      {open && <div className="sidebar-category-body pl-2 ml-4 border-l border-white/5 mt-2 space-y-4">{children}</div>}
+      <div className={open ? '' : 'hidden'}>
+        <div className="sidebar-category-body pl-2 ml-4 border-l border-white/5 mt-2 space-y-4">
+          {children}
+        </div>
+      </div>
     </div>
   )
 }

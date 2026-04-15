@@ -1,4 +1,4 @@
-import { useMemo, useEffect } from 'react'
+import { useMemo, useEffect, Suspense } from 'react'
 import { useLoader } from '@react-three/fiber'
 import * as THREE from 'three'
 
@@ -121,20 +121,24 @@ function ProductGroup({ dropzoneMesh, items = [] }) {
 
         if (product.isCustom) {
           return (
-            <group key={id} position={pos} quaternion={quat} scale={scale}>
-              <TexturedBox dimensions={product.dimensions} textureUrl={product.textureUrl} />
-            </group>
+            <Suspense key={id} fallback={null}>
+              <group position={pos} quaternion={quat} scale={scale}>
+                <TexturedBox dimensions={product.dimensions} textureUrl={product.textureUrl} />
+              </group>
+            </Suspense>
           )
         }
 
         return (
-          <mesh key={id} position={pos} quaternion={quat} scale={scale} castShadow receiveShadow>
-            {product.geometry === 'sphere'   && <sphereGeometry   args={[radXZ, 32, 16]} />}
-            {product.geometry === 'cylinder' && <cylinderGeometry args={[radXZ, radXZ, pHeight - 0.002, 32]} />}
-            {product.geometry === 'cone'     && <coneGeometry     args={[radXZ, pHeight - 0.002, 32]} />}
-            {(!product.geometry || product.geometry === 'box') && <boxGeometry args={[pWidth - 0.002, pHeight - 0.002, pDepth - 0.002]} />}
-            <meshStandardMaterial color={product.color} roughness={0.1} metalness={0.8} />
-          </mesh>
+          <Suspense key={id} fallback={null}>
+            <mesh position={pos} quaternion={quat} scale={scale} castShadow receiveShadow>
+              {product.geometry === 'sphere'   && <sphereGeometry   args={[radXZ, 32, 16]} />}
+              {product.geometry === 'cylinder' && <cylinderGeometry args={[radXZ, radXZ, pHeight - 0.002, 32]} />}
+              {product.geometry === 'cone'     && <coneGeometry     args={[radXZ, pHeight - 0.002, 32]} />}
+              {(!product.geometry || product.geometry === 'box') && <boxGeometry args={[pWidth - 0.002, pHeight - 0.002, pDepth - 0.002]} />}
+              <meshStandardMaterial color={product.color} roughness={0.1} metalness={0.8} />
+            </mesh>
+          </Suspense>
         )
       })}
     </group>

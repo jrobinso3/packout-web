@@ -153,18 +153,12 @@ function MaterialCard({ entry }) {
     if (originalAlbedoTex) setThumbSrc(textureToDataURL(originalAlbedoTex))
   }, [originalAlbedoTex])
 
-  // Cleanup: restore original map and dispose blend canvas on unmount
+  // Cleanup: Clear debounces on unmount
   useEffect(() => {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
-      if (blendRef.current && originalMapRef.current) {
-        material.map = originalMapRef.current
-        material.needsUpdate = true
-        blendRef.current.canvasTex.dispose()
-        blendRef.current = null
-      }
     }
-  }, [material])
+  }, [])
 
   // ── Canvas blend helper ──
   // Composites the source image at `v` opacity over white → mix(white, texel, v).
