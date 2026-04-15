@@ -106,8 +106,10 @@ export default function EditProductSection({ shelfId, placement, onUpdate }) {
                 </div>
 
                 {/* Spacing */}
-                <div className="flex flex-col gap-1">
-                  <label className="text-[9px] font-black uppercase tracking-widest text-text-dim">Spacing (in)</label>
+                <div className={`flex flex-col gap-1 transition-opacity ${item.autoFit ? 'opacity-30 grayscale pointer-events-none' : ''}`}>
+                  <label className="text-[9px] font-black uppercase tracking-widest text-text-dim">
+                    Spacing (in) {item.autoFit && <span className="text-secondary tracking-normal">(AUTO)</span>}
+                  </label>
                   <div className="flex items-center h-7 px-2 bg-black/5 border border-black/10 rounded-lg">
                     <input 
                       type="number"
@@ -120,8 +122,8 @@ export default function EditProductSection({ shelfId, placement, onUpdate }) {
                 </div>
 
                 {/* Stacking Toggle */}
-                <div className="col-span-2 flex items-center justify-between bg-white/5 p-2 rounded-lg border border-white/5">
-                  <span className="text-[10px] font-bold text-text-dim">Stack Product High</span>
+                <div className="flex items-center justify-between bg-white/5 p-2 rounded-lg border border-white/5">
+                  <span className="text-[10px] font-bold text-text-dim">Stack High</span>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input 
                       type="checkbox" 
@@ -130,6 +132,20 @@ export default function EditProductSection({ shelfId, placement, onUpdate }) {
                       onChange={(e) => updateItem(item.id, { stackVertical: e.target.checked })}
                     />
                     <div className="w-8 h-4 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-accent after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-accent/40"></div>
+                  </label>
+                </div>
+
+                {/* Auto-Fit Toggle */}
+                <div className="flex items-center justify-between bg-white/5 p-2 rounded-lg border border-white/5">
+                  <span className="text-[10px] font-bold text-text-dim">Auto-Fit (W & D)</span>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      className="sr-only peer"
+                      checked={item.autoFit}
+                      onChange={(e) => updateItem(item.id, { autoFit: e.target.checked })}
+                    />
+                    <div className="w-8 h-4 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-secondary after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-secondary/40"></div>
                   </label>
                 </div>
 

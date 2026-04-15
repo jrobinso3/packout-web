@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from 'react'
+import * as THREE from 'three'
 import ConfiguratorCanvas from './ConfiguratorCanvas'
 import Sidebar from './components/Sidebar'
 
@@ -38,16 +39,22 @@ function App() {
         product,
         facings: 1,
         stackVertical: false,
-        spacing: 0
+        spacing: 0,
+        autoFit: false
       }
 
       newItems.push(newItem)
 
-      // Initial Split Logic: Attempt to give each product group an equal share of the width
+      // Initial Split Logic: Calculate capacity using TRUE WORLD dimensions
       mesh.geometry.computeBoundingBox()
-      const shelfWidth = mesh.geometry.boundingBox.max.x - mesh.geometry.boundingBox.min.x
-      const targetWidthPerProduct = shelfWidth / newItems.length
+      const worldScale = new THREE.Vector3()
+      mesh.getWorldScale(worldScale)
 
+      const localWidth = mesh.geometry.boundingBox.max.x - mesh.geometry.boundingBox.min.x
+      const worldWidth = localWidth * worldScale.x
+      
+      const targetWidthPerProduct = worldWidth / newItems.length
+      
       newItems.forEach(item => {
         item.facings = Math.max(1, Math.floor(targetWidthPerProduct / item.product.dimensions[0]))
       })

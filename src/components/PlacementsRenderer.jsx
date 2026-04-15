@@ -1,152 +1,158 @@
-import { useMemo, useEffect, Suspense } from 'react'
+import { useMemo, useEffect, useRef, Suspense } from 'react'
 import { useLoader } from '@react-three/fiber'
 import * as THREE from 'three'
 
-// ─── TexturedBox ──────────────────────────────────────────────────────────────
-// Renders a box where the front (+Z) and back (-Z) faces carry the product PNG.
-// The four thin edge faces (left, right, top, bottom) use a neutral white so
-// the label reads cleanly from the aisle without showing the image mirrored.
+// ─── Shared Logic ─────────────────────────────────────────────────────────────
 
-function TexturedBox({ dimensions, textureUrl }) {
-  const texture = useLoader(THREE.TextureLoader, textureUrl)
-  // Ensure correct color space for PNGs
-  texture.colorSpace = THREE.SRGBColorSpace
-  
-  const [w, h, d] = dimensions
+// Shared material to prevent overhead of hundreds of identical invisible materials.
+const sharedInvisibleMat = new THREE.MeshBasicMaterial({ visible: false })
 
-  // Re-use materials across re-renders; do NOT dispose shared textures here!
-  const materials = useMemo(() => {
-    // Create an invisible material for all faces except the front
-    const invisible = new THREE.MeshBasicMaterial({ visible: false })
-    
-    const face = new THREE.MeshStandardMaterial({ 
-      map: texture, 
-      roughness: 0.6,
-      transparent: true, // PNG alpha
-      side: THREE.DoubleSide
-    })
-
-    // BoxGeometry face order: +X, -X, +Y, -Y, +Z (front), -Z (back)
-    // Only the +Z face (index 4) is visible.
-    return [invisible, invisible, invisible, invisible, face, invisible]
-  }, [texture])
+/**
+ * Renders a batch of identical products using instancing.
+ * This is the "memory container" that prevents WebGL from crashing on high counts.
+ */
+function ProductBatch({ product, matrices }) {
+  const meshRef = useRef()
+  const [w, h, d] = product.dimensions
 
   useEffect(() => {
-    return () => {
-      // We only dispose materials that are specific to this instance's mesh.
-      // We do NOT dispose the texture here because other boxes might use it.
-      materials.forEach((m) => m.dispose())
-    }
-  }, [materials])
+    if (!meshRef.current) return
+    matrices.forEach((matrix, i) => {
+      meshRef.current.setMatrixAt(i, matrix)
+    })
+    meshRef.current.instanceMatrix.needsUpdate = true
+  }, [matrices])
+
+  // ─── CUSTOM PRODUCT (Textured) ──────────────────────────────────────────────
+  if (product.isCustom) {
+    const texture = useLoader(THREE.TextureLoader, product.textureUrl)
+    texture.colorSpace = THREE.SRGBColorSpace
+
+    // One shared material array for all 100+ instances of this specific custom product.
+    const materials = useMemo(() => [
+      sharedInvisibleMat, sharedInvisibleMat, sharedInvisibleMat, sharedInvisibleMat,
+      new THREE.MeshStandardMaterial({ 
+        map: texture, 
+        transparent: true, 
+        roughness: 0.6, 
+        side: THREE.DoubleSide 
+      }),
+      sharedInvisibleMat
+    ], [texture])
+
+    return (
+      <instancedMesh ref={meshRef} args={[null, null, matrices.length]} castShadow receiveShadow>
+        <boxGeometry args={[w, h, d]} />
+        {materials.map((mat, i) => (
+          <primitive key={i} object={mat} attach={`material-${i}`} />
+        ))}
+      </instancedMesh>
+    )
+  }
+
+  // ─── STANDARD PRODUCT (Demo Shapes) ──────────────────────────────────────────
+  const radXZ = Math.min(w, d) / 2
+  let geometry
+  if (product.geometry === 'sphere')   geometry = <sphereGeometry   args={[radXZ, 32, 16]} />
+  if (product.geometry === 'cylinder') geometry = <cylinderGeometry args={[radXZ, radXZ, h - 0.002, 32]} />
+  if (product.geometry === 'cone')     geometry = <coneGeometry     args={[radXZ, h - 0.002, 32]} />
+  if (!geometry)                       geometry = <boxGeometry      args={[w - 0.002, h - 0.002, d - 0.002]} />
 
   return (
-    <mesh castShadow receiveShadow>
-      <boxGeometry args={[w, h, d]} />
-      {materials.map((mat, i) => (
-        <primitive key={i} object={mat} attach={`material-${i}`} />
-      ))}
-    </mesh>
+    <instancedMesh ref={meshRef} args={[null, null, matrices.length]} castShadow receiveShadow>
+      {geometry}
+      <meshStandardMaterial color={product.color} roughness={0.8} metalness={0} />
+    </instancedMesh>
   )
 }
 
-// ─── ProductGroup ─────────────────────────────────────────────────────────────
-
 function ProductGroup({ dropzoneMesh, items = [] }) {
-  const transforms = useMemo(() => {
-    if (!items.length) return []
+  // 1. Group items by their product definition to enable instancing
+  const groups = useMemo(() => {
+    if (!items.length) return new Map()
     
+    const worldScale = new THREE.Vector3()
+    dropzoneMesh.getWorldScale(worldScale)
+    if (worldScale.x === 0) worldScale.x = 1
+    if (worldScale.y === 0) worldScale.y = 1
+    if (worldScale.z === 0) worldScale.z = 1
+
     dropzoneMesh.geometry.computeBoundingBox()
     const bbox = dropzoneMesh.geometry.boundingBox
+    const localWidth  = bbox.max.x - bbox.min.x
+    const localHeight = bbox.max.y - bbox.min.y
+    const localDepth  = bbox.max.z - bbox.min.z
 
-    const dropzoneWidth  = bbox.max.x - bbox.min.x
-    const dropzoneHeight = bbox.max.y - bbox.min.y
-    const dropzoneDepth  = bbox.max.z - bbox.min.z
-
-    const results = []
-    const dummy        = new THREE.Object3D()
+    const map = new Map() // productId -> { product, matrices: [] }
+    const dummy = new THREE.Object3D()
     const globalMatrix = new THREE.Matrix4()
 
-    // Start at the left edge of the dropzone
-    let cursorX = bbox.min.x
+    const globalAutoFit = items.some(item => item.autoFit)
+    let totalFacings = 0
+    let totalProductWidthLocal = 0
+    
+    items.forEach(item => {
+      const f = item.facings || 1
+      const lw = (item.product.dimensions?.[0] || 0.1) / worldScale.x
+      totalFacings += f
+      totalProductWidthLocal += f * lw
+    })
+
+    const globalAutoSpacingX = (globalAutoFit && totalFacings > 1)
+      ? (localWidth - totalProductWidthLocal) / (totalFacings - 1)
+      : 0
+
+    let accumulatedWidthLocal = 0
+    let globalFacingCounter = 0
 
     items.forEach((item) => {
-      const { product, facings = 1, stackVertical = false, spacing = 0 } = item
+      const { product, facings = 1, stackVertical = false, spacing = 0, autoFit = false } = item
       const [pWidth, pHeight, pDepth] = product.dimensions
-      const sMeters = (spacing || 0) * 0.0254 // inches to meters
+      const lpWidth  = pWidth / worldScale.x
+      const lpHeight = pHeight / worldScale.y
+      const lpDepth  = pDepth / worldScale.z
+      const lsMeters = (spacing * 0.0254) / worldScale.x
 
-      // Calculate how many fit in Y and Z
-      const countY = stackVertical ? Math.max(1, Math.floor(dropzoneHeight / pHeight)) : 1
-      const countZ = Math.max(1, Math.floor(dropzoneDepth  / pDepth))
+      const countY = stackVertical ? Math.max(1, Math.floor(localHeight / lpHeight)) : 1
+      const countZ = Math.max(1, Math.floor(localDepth  / lpDepth))
+      const spacingZ = (autoFit && countZ > 1) ? (localDepth - (countZ * lpDepth)) / (countZ - 1) : 0
 
-      // Start at the front edge of the shelf (max Z) minus half the product depth
-      const startZ = bbox.max.z - pDepth / 2
-      const startY = bbox.min.y + pHeight / 2
+      const startZ = bbox.max.z - lpDepth / 2
+      const startY = bbox.min.y + lpHeight / 2
+
+      if (!map.has(product.id)) map.set(product.id, { product, matrices: [] })
+      const groupData = map.get(product.id)
+
+      const spacingX = globalAutoFit ? globalAutoSpacingX : lsMeters
 
       for (let y = 0; y < countY; y++) {
         for (let z = 0; z < countZ; z++) {
           for (let x = 0; x < facings; x++) {
-            // Apply spacing between each "facing" (row)
-            const posX = cursorX + pWidth / 2 + x * (pWidth + sMeters)
+            const posX = bbox.min.x + accumulatedWidthLocal + (x * lpWidth) + (globalFacingCounter + x) * spacingX + lpWidth / 2
+            if (posX - lpWidth / 2 > bbox.max.x + 0.005) continue
             
-            // Check if we've exceeded the dropzone width
-            if (posX - pWidth / 2 > bbox.max.x) continue
-
-            // Subtract z * pDepth to stack rows DEEPER into the shelf (moving away from front edge)
-            dummy.position.set(posX, startY + y * pHeight, startZ - z * pDepth)
+            dummy.position.set(posX, startY + y * lpHeight, startZ - z * (lpDepth + spacingZ))
             dummy.updateMatrix()
             globalMatrix.copy(dropzoneMesh.matrixWorld).multiply(dummy.matrix)
-
-            const pos  = new THREE.Vector3()
-            const quat = new THREE.Quaternion()
-            const scale = new THREE.Vector3()
-            globalMatrix.decompose(pos, quat, scale)
-            
-            results.push({ pos, quat, scale, product, id: `${item.id}-${x}-${y}-${z}` })
+            groupData.matrices.push(globalMatrix.clone())
           }
         }
       }
-
-      // Advance cursor: total width of facings + spacing between them + one trailing spacing
-      cursorX += (facings * pWidth) + (facings * sMeters)
+      accumulatedWidthLocal += facings * lpWidth + (globalAutoFit ? 0 : facings * lsMeters)
+      if (globalAutoFit) globalFacingCounter += facings
     })
 
-    return results
+    return map
   }, [dropzoneMesh, items])
 
   return (
     <group>
-      {transforms.map((t) => {
-        const { product, pos, quat, scale, id } = t
-        const [pWidth, pHeight, pDepth] = product.dimensions
-        const radXZ = Math.min(pWidth, pDepth) / 2 - 0.001
-
-        if (product.isCustom) {
-          return (
-            <Suspense key={id} fallback={null}>
-              <group position={pos} quaternion={quat} scale={scale}>
-                <TexturedBox dimensions={product.dimensions} textureUrl={product.textureUrl} />
-              </group>
-            </Suspense>
-          )
-        }
-
-        return (
-          <Suspense key={id} fallback={null}>
-            <mesh position={pos} quaternion={quat} scale={scale} castShadow receiveShadow>
-              {product.geometry === 'sphere'   && <sphereGeometry   args={[radXZ, 32, 16]} />}
-              {product.geometry === 'cylinder' && <cylinderGeometry args={[radXZ, radXZ, pHeight - 0.002, 32]} />}
-              {product.geometry === 'cone'     && <coneGeometry     args={[radXZ, pHeight - 0.002, 32]} />}
-              {(!product.geometry || product.geometry === 'box') && <boxGeometry args={[pWidth - 0.002, pHeight - 0.002, pDepth - 0.002]} />}
-              <meshStandardMaterial color={product.color} roughness={0.8} metalness={0} />
-            </mesh>
-          </Suspense>
-        )
-      })}
+      {Array.from(groups.values()).map(({ product, matrices }) => (
+        <ProductBatch key={product.id} product={product} matrices={matrices} />
+      ))}
     </group>
   )
 }
-
-// ─── PlacementsRenderer ───────────────────────────────────────────────────────
 
 export default function PlacementsRenderer({ placements }) {
   return (
