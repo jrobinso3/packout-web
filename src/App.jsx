@@ -3,10 +3,12 @@ import * as THREE from 'three'
 import ConfiguratorCanvas from './ConfiguratorCanvas'
 import Sidebar from './components/Sidebar'
 import PropertiesPanel from './components/PropertiesPanel'
+import DisplaySelectorModal from './components/DisplaySelectorModal'
 
 function App() {
   const [displayUrl, setDisplayUrl] = useState(`${import.meta.env.BASE_URL}displays/Floorstand_3S.glb`)
   const [draggedProduct, setDraggedProduct] = useState(null)
+  const [isSelectorOpen, setIsSelectorOpen] = useState(false)
   
   // Track placements as { [uuid]: { mesh, items: [] } }
   // Each item: { id, product, facings, stackVertical, spacing }
@@ -106,6 +108,7 @@ function App() {
         onMaterialsReady={handleMaterialsReady}
         onExportReady={handleExportReady}
       />
+      
       <Sidebar
         setDisplayUrl={handleSetDisplayUrl}
         setDraggedProduct={setDraggedProduct}
@@ -115,7 +118,10 @@ function App() {
         activeShelfId={activeShelfId}
         onSelectShelf={handleSelectShelf}
         onUpdateShelf={handleUpdateShelf}
+        onOpenDisplaySelector={() => setIsSelectorOpen(true)}
+        currentDisplayUrl={displayUrl}
       />
+
       <PropertiesPanel 
         placements={placements}
         unitPrices={unitPrices}
@@ -123,6 +129,14 @@ function App() {
         onUnitPriceChange={handleUnitPriceChange}
         onUnitCostChange={handleUnitCostChange}
       />
+
+      {isSelectorOpen && (
+        <DisplaySelectorModal 
+          currentUrl={displayUrl}
+          setDisplayUrl={handleSetDisplayUrl}
+          onClose={() => setIsSelectorOpen(false)}
+        />
+      )}
     </main>
   )
 }

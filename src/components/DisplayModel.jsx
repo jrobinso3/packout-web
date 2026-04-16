@@ -11,7 +11,7 @@ function prettifyName(name) {
     .trim()
 }
 
-export default function DisplayModel({ url, onMaterialsReady }) {
+export default function DisplayModel({ url, onMaterialsReady, onLoaded }) {
   const { scene } = useGLTF(url)
 
   // We mutate the pristine scene directly instead of cloning it.
@@ -119,7 +119,11 @@ export default function DisplayModel({ url, onMaterialsReady }) {
       }))
       onMaterialsReady(groups)
     }
-  }, [scene])
+
+    if (onLoaded) {
+      onLoaded(scene)
+    }
+  }, [scene, onMaterialsReady, onLoaded])
 
   return <primitive object={scene} position={[0, -1, 0]} />
 }

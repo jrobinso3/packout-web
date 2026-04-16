@@ -78,7 +78,9 @@ export default function Sidebar({
   placements,
   activeShelfId,
   onSelectShelf,
-  onUpdateShelf
+  onUpdateShelf,
+  onOpenDisplaySelector,
+  currentDisplayUrl
 }) {
   const [demoOpen, setDemoOpen]       = useState(false)
   const [customOpen, setCustomOpen]   = useState(false)
@@ -150,39 +152,53 @@ export default function Sidebar({
         {/* ─── DISPLAY CATEGORY ─── */}
         <SidebarCategory title="Display" icon={Layers} defaultOpen={true}>
           
-          <SidebarSection title="Display Gallery" defaultOpen={true}>
-             <div className="grid grid-cols-1 gap-2 mt-2">
-                {[
-                  { id: 'floorstand', name: 'Floorstand 3S', url: 'Floorstand_3S.glb' },
-                  { id: 'pallet', name: 'Half Pallet', url: 'QDRP_Half_Pallet_Simplified.glb' }
-                ].map(d => (
-                  <button
-                    key={d.id}
-                    onClick={() => setDisplayUrl(`${import.meta.env.BASE_URL}displays/${d.url}`)}
-                    className="w-full text-left p-3 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 hover:border-accent/40 transition-all group flex items-center justify-between"
-                  >
-                    <div className="flex flex-col">
-                      <span className="text-[11px] font-bold text-text-main group-hover:text-accent transition-colors">{d.name}</span>
-                      <span className="text-[9px] text-text-dim/50 uppercase tracking-tighter">GLB Model</span>
+          {/* Active Model Summary & Change Trigger */}
+          <SidebarSection title="Active Framework" defaultOpen={true}>
+            <button
+              onClick={onOpenDisplaySelector}
+              className="w-full mt-2 p-1.5 rounded-2xl border border-white/5 bg-white/5 hover:bg-white/10 hover:border-accent/40 transition-all group flex items-center gap-3 active:scale-[0.98]"
+            >
+              <div className="w-14 h-14 rounded-xl bg-black/40 border border-white/10 overflow-hidden flex-shrink-0 shadow-inner">
+                {(() => {
+                  const displayGallery = [
+                    { name: 'Floorstand 3S', url: 'Floorstand_3S.glb', thumb: 'Floorstand_3S.png' },
+                    { name: 'Half Pallet',   url: 'QDRP_Half_Pallet_Simplified.glb', thumb: 'Half_Pallet.png' }
+                  ]
+                  const active = displayGallery.find(d => currentDisplayUrl.includes(d.url))
+                  if (active) {
+                    return (
+                      <img 
+                        src={`${import.meta.env.BASE_URL}previews/${active.thumb}`} 
+                        alt="Active Preview"
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                      />
+                    )
+                  }
+                  return (
+                    <div className="w-full h-full flex items-center justify-center text-text-dim/20 bg-accent/5">
+                      <Box size={20} />
                     </div>
-                    <Box size={14} className="text-text-dim/20 group-hover:text-accent/40 transition-colors" />
-                  </button>
-                ))}
-             </div>
-          </SidebarSection>
-
-          <SidebarSection title="Display Upload">
-             <div className="flex flex-col gap-2 mt-1">
-                <label className="flex flex-col items-center justify-center cursor-pointer p-3 border border-dashed border-white/10 rounded-xl hover:border-accent hover:bg-white/5 transition-all w-full group">
-                  <Upload size={16} className="text-text-main mb-1 group-hover:text-accent transition-colors" />
-                  <span className="text-[9px] font-medium text-text-dim">External GLB</span>
-                  <input type="file" className="hidden" accept=".glb,.gltf" onChange={handleDisplayUpload} />
-                </label>
-             </div>
+                  )
+                })()}
+              </div>
+              <div className="flex flex-col text-left overflow-hidden">
+                <span className="text-[10px] font-black uppercase tracking-widest text-accent mb-0.5">Change Model</span>
+                <span className="text-xs font-bold text-text-main truncate w-full">
+                  {(() => {
+                    const displayGallery = [
+                      { name: 'Floorstand 3S', url: 'Floorstand_3S.glb' },
+                      { name: 'Half Pallet',   url: 'QDRP_Half_Pallet_Simplified.glb' }
+                    ]
+                    const active = displayGallery.find(d => currentDisplayUrl.includes(d.url))
+                    return active ? active.name : 'Custom Display'
+                  })()}
+                </span>
+              </div>
+            </button>
           </SidebarSection>
 
           {hasGroups && (
-            <SidebarSection title="Display Artwork">
+            <SidebarSection title="Display Graphics">
               <div className="mt-2 text-text-main">
                 <MaterialEditor groups={displayMaterials} />
               </div>

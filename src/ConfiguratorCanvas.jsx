@@ -1,16 +1,62 @@
 import { Environment, OrbitControls, ContactShadows, Grid } from '@react-three/drei'
 import * as THREE from 'three'
-import { Suspense, useRef, useEffect } from 'react'
-import { Canvas, useThree } from '@react-three/fiber'
+import { Suspense, useRef, useEffect, useState } from 'react'
+import { Canvas, useThree, useFrame } from '@react-three/fiber'
 import DisplayModel from './components/DisplayModel'
 import DropController from './components/DropController'
 import PlacementsRenderer from './components/PlacementsRenderer'
 
-// ─── ExportCapture ────────────────────────────────────────────────────────────
-// Sits inside the Canvas so it can access useThree().
-// Receives a ref to the scene-helper group (Grid + ContactShadows) so it can
-// toggle them off, render a clean transparent frame, then restore everything.
+// ─── CameraAutoFit Helper ──────────────────────────────────────────────────
+// Calculates the bounding box of the loaded model and moves the camera
+// so that the entire object is elegantly framed.
+function CameraAutoFit({ targetModel }) {
+  const { camera, controls } = useThree()
+  const destPos    = useRef(null)
+  const destTarget = useRef(null)
+  const animating  = useRef(false)
 
+  useEffect(() => {
+    if (!targetModel || !controls) return
+
+    const box = new THREE.Box3().setFromObject(targetModel)
+    const center = new THREE.Vector3()
+    const size   = new THREE.Vector3()
+    box.getCenter(center)
+    box.getSize(size)
+
+    const maxDim = Math.max(size.x, size.y, size.z)
+    const fov    = camera.fov * (Math.PI / 180)
+    let cameraZ  = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 1.2
+
+    destTarget.current = center.clone()
+    destPos.current = new THREE.Vector3(
+      center.x + cameraZ * 0.6,
+      center.y + cameraZ * 0.3,
+      center.z + cameraZ * 0.8
+    )
+    animating.current = true
+
+  }, [targetModel, camera, controls])
+
+  useFrame(() => {
+    if (!animating.current || !destPos.current || !destTarget.current || !controls) return
+
+    camera.position.lerp(destPos.current, 0.06)
+    controls.target.lerp(destTarget.current, 0.06)
+    controls.update()
+
+    if (camera.position.distanceTo(destPos.current) < 0.001) {
+      camera.position.copy(destPos.current)
+      controls.target.copy(destTarget.current)
+      controls.update()
+      animating.current = false
+    }
+  })
+
+  return null
+}
+
+// ─── ExportCapture ────────────────────────────────────────────────────────────
 function ExportCapture({ onReady, helperGroupRef }) {
   const { gl, scene, camera } = useThree()
 
@@ -18,11 +64,8 @@ function ExportCapture({ onReady, helperGroupRef }) {
     if (!onReady) return
 
     onReady(() => {
-      // ── 1. Hide scene helpers ──────────────────────────────────────────────
-      // Grid + ContactShadows
       if (helperGroupRef.current) helperGroupRef.current.visible = false
 
-      // Dropzone wire outlines
       const hiddenDropzones = []
       scene.traverse((child) => {
         if (child.userData.isDropzoneVisual && child.visible) {
@@ -31,7 +74,6 @@ function ExportCapture({ onReady, helperGroupRef }) {
         }
       })
 
-      // ── 2. Transparent background render ──────────────────────────────────
       const prevBackground = scene.background
       const prevClearAlpha = gl.getClearAlpha()
       const prevPixelRatio = gl.getPixelRatio()
@@ -41,10 +83,8 @@ function ExportCapture({ onReady, helperGroupRef }) {
       gl.setPixelRatio(Math.min(window.devicePixelRatio, 2))
       gl.render(scene, camera)
 
-      // ── 3. Capture ────────────────────────────────────────────────────────
       const dataURL = gl.domElement.toDataURL('image/png')
 
-      // ── 4. Restore everything ─────────────────────────────────────────────
       scene.background = prevBackground
       gl.setClearAlpha(prevClearAlpha)
       gl.setPixelRatio(prevPixelRatio)
@@ -52,9 +92,8 @@ function ExportCapture({ onReady, helperGroupRef }) {
       if (helperGroupRef.current) helperGroupRef.current.visible = true
       hiddenDropzones.forEach(c => { c.visible = true })
 
-      gl.render(scene, camera) // put the viewport back to normal
+      gl.render(scene, camera)
 
-      // ── 5. Download ───────────────────────────────────────────────────────
       const filename = `packout_${new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-')}.png`
       const link = document.createElement('a')
       link.download = filename
@@ -67,7 +106,6 @@ function ExportCapture({ onReady, helperGroupRef }) {
 }
 
 // ─── ConfiguratorCanvas ───────────────────────────────────────────────────────
-
 export default function ConfiguratorCanvas({
   displayUrl,
   draggedProduct,
@@ -78,8 +116,8 @@ export default function ConfiguratorCanvas({
   onMaterialsReady,
   onExportReady,
 }) {
-  // Ref to the group containing Grid + ContactShadows — toggled off during export
   const helperGroupRef = useRef()
+  const [loadedModel, setLoadedModel] = useState(null)
 
   return (
     <div className="absolute inset-0 z-0">
@@ -115,17 +153,20 @@ export default function ConfiguratorCanvas({
           <Environment files="/packout-web/studios/studio_small_09_4k.exr" background blur={0.06} environmentIntensity={0.25} />
           <DropController draggedProduct={draggedProduct} onDisplayDrop={onDisplayDrop} activeShelfId={activeShelfId} onSelectShelf={onSelectShelf} />
           
-          {/* Main Display Model Suspense */}
           <Suspense fallback={null}>
-            {displayUrl && <DisplayModel url={displayUrl} onMaterialsReady={onMaterialsReady} />}
+            {displayUrl && (
+              <DisplayModel 
+                url={displayUrl} 
+                onMaterialsReady={onMaterialsReady} 
+                onLoaded={setLoadedModel}
+              />
+            )}
           </Suspense>
 
-          {/* Independent Product Suspense — prevents whole-scene crashing on new texture load */}
           <Suspense fallback={null}>
             {placements && <PlacementsRenderer placements={placements} />}
           </Suspense>
 
-          {/* Scene helpers — hidden during PNG export */}
           <group ref={helperGroupRef}>
             <Grid
               position={[0, -1.01, 0]}
@@ -149,7 +190,10 @@ export default function ConfiguratorCanvas({
           </group>
         </Suspense>
 
-        <OrbitControls makeDefault target={[0, -0.3, 0]} maxPolarAngle={Math.PI / 2 + 0.1} minDistance={2} maxDistance={20} />
+        <OrbitControls makeDefault target={[0, -0.3, 0]} maxPolarAngle={Math.PI / 2 + 0.1} minDistance={1} maxDistance={30} />
+        
+        {/* Helper to fit camera when model loads */}
+        <CameraAutoFit targetModel={loadedModel} />
 
         <ExportCapture onReady={onExportReady} helperGroupRef={helperGroupRef} />
       </Canvas>
