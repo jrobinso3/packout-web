@@ -1,0 +1,26 @@
+[
+  {
+    "id": "Floorstand_3S",
+    "name": "Floorstand 3S",
+    "url": "Floorstand_3S.glb",
+    "thumb": "Floorstand_3S.png"
+  },
+  {
+    "id": "NFL_Tray",
+    "name": "NFL Tray",
+    "url": "NFL_Tray.glb",
+    "thumb": "NFL_Tray.png"
+  },
+  {
+    "id": "QDRP_Half_Pallet_Simplified",
+    "name": "QDRP Half Pallet Simplified",
+    "url": "QDRP_Half_Pallet_Simplified.glb",
+    "thumb": "QDRP_Half_Pallet_Simplified.png"
+  },
+  {
+    "id": "Sidekick_4S_Simplified",
+    "name": "Sidekick 4S Simplified",
+    "url": "Sidekick_4S_Simplified.glb",
+    "thumb": "Sidekick_4S_Simplified.png"
+  }
+]

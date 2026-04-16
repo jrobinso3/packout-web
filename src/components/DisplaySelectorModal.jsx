@@ -1,10 +1,22 @@
-import { X, Upload, Box, Check } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { X, Upload, Box, Check, Loader2 } from 'lucide-react'
 
 export default function DisplaySelectorModal({ currentUrl, setDisplayUrl, onClose }) {
-  const displayGallery = [
-    { id: 'floorstand', name: 'Floorstand 3S', url: 'Floorstand_3S.glb', thumb: 'Floorstand_3S.png' },
-    { id: 'pallet',     name: 'Half Pallet',   url: 'QDRP_Half_Pallet_Simplified.glb', thumb: 'Half_Pallet.png' }
-  ]
+  const [displayLibrary, setDisplayLibrary] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    fetch(`${import.meta.env.BASE_URL}displays/manifest.json`)
+      .then(res => res.json())
+      .then(data => {
+        setDisplayLibrary(data)
+        setIsLoading(false)
+      })
+      .catch(err => {
+        console.error('Error loading displays:', err)
+        setIsLoading(false)
+      })
+  }, [])
 
   const handleFileUpload = (e) => {
     const file = e.target.files?.[0]
@@ -56,7 +68,12 @@ export default function DisplaySelectorModal({ currentUrl, setDisplayUrl, onClos
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {displayGallery.map((d) => {
+                {isLoading ? (
+                  <div className="md:col-span-2 flex flex-col items-center justify-center py-20 gap-4 text-accent/40">
+                    <Loader2 size={40} className="animate-spin" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Scanning Catalog...</span>
+                  </div>
+                ) : displayLibrary.map((d) => {
                   const fullUrl = `${import.meta.env.BASE_URL}displays/${d.url}`
                   const isActive = currentUrl === fullUrl
 
