@@ -1,5 +1,17 @@
 [
   {
+    "id": "15in_PDQ",
+    "name": "15in PDQ",
+    "url": "15in_PDQ.glb",
+    "thumb": "15in_PDQ.png"
+  },
+  {
+    "id": "4-Sided_Pallet",
+    "name": "4-Sided Pallet",
+    "url": "4-Sided_Pallet.glb",
+    "thumb": "4-Sided_Pallet.png"
+  },
+  {
     "id": "Floorstand_3S",
     "name": "Floorstand 3S",
     "url": "Floorstand_3S.glb",

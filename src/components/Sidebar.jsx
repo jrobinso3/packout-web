@@ -151,10 +151,10 @@ export default function Sidebar({
       <div className="flex-1 overflow-y-auto space-y-8 pr-1 custom-scrollbar">
 
         {/* ─── DISPLAY CATEGORY ─── */}
-        <SidebarCategory title="Display" icon={Layers} defaultOpen={true}>
+        <SidebarCategory title="Display" icon={Layers} defaultOpen={false}>
           
           {/* Active Model Summary & Change Trigger */}
-          <SidebarSection title="Display Structure" defaultOpen={true}>
+          <SidebarSection title="Display Structure" defaultOpen={false}>
             <button
               onClick={onOpenDisplaySelector}
               className="w-full mt-2 p-1.5 rounded-2xl border border-white/5 bg-white/5 hover:bg-white/10 hover:border-accent/40 transition-all group flex items-center gap-3 active:scale-[0.98]"
@@ -247,7 +247,7 @@ export default function Sidebar({
             <SidebarCategory 
               title="Edit Products" 
               icon={Settings2} 
-              defaultOpen={!!activeShelfId}
+              defaultOpen={false}
               disabled={!hasPlacements}
               alert="Add product before editing."
             >

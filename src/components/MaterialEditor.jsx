@@ -348,7 +348,7 @@ function MaterialCard({ entry }) {
 // One collapsible section per mesh object in the GLB.
 
 function MaterialGroup({ groupName, label, materials }) {
-  const [open, setOpen] = useState(true)
+  const [open, setOpen] = useState(false)
 
   // Filter out "fluting" materials — internal structural material not user-facing
   const visible = (materials ?? []).filter(

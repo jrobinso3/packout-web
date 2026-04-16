@@ -43,11 +43,19 @@ const syncGalleryPlugin = () => {
     configureServer(server) {
       const displaysDir = path.resolve(__dirname, 'public/displays')
       const previewsDir = path.resolve(__dirname, 'public/previews')
+      
       server.watcher.add([displaysDir, previewsDir])
       
-      const onChange = (file) => {
-        if (file.includes('public/displays') || file.includes('public/previews')) sync()
+      const onChange = (filePath) => {
+        const fullPath = path.resolve(filePath)
+        if (fullPath.startsWith(displaysDir) || fullPath.startsWith(previewsDir)) {
+          if (!fullPath.endsWith('manifest.json')) {
+            console.log(`[Sync] File change detected: ${path.basename(fullPath)}`)
+            sync()
+          }
+        }
       }
+      
       server.watcher.on('add', onChange)
       server.watcher.on('unlink', onChange)
       server.watcher.on('change', onChange)
