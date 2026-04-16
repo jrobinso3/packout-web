@@ -7,7 +7,9 @@ export default function EditProductSection({ shelfId, placement, onUpdate }) {
   if (!placement) return null
 
   const { mesh, items } = placement
-  const shelfName = mesh.name ? mesh.name.replace(/_/g, ' ').toUpperCase() : 'SELECTED SHELF'
+  const shelfName = mesh.name 
+    ? mesh.name.replace(/[ _]?(col|ind)(\b|$)/gi, '').replace(/_/g, ' ').toUpperCase() 
+    : 'SELECTED SHELF'
 
   const updateItem = (itemId, updates) => {
     const newItems = items.map(item => 

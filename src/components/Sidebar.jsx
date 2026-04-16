@@ -265,7 +265,11 @@ export default function Sidebar({
                                 : 'bg-black/5 border-black/5 text-text-main/60 hover:bg-black/10'
                             }`}
                           >
-                             {p.mesh.name?.replace(/_/g, ' ').toUpperCase() || 'SHELF'}
+                             {p.mesh.name
+                               ?.replace(/[ _]?(col|ind)(\b|$)/gi, '') // Remove technical suffixes (underscore, space, or none)
+                               ?.replace(/\.\d+$/g, '')               // Remove Blender .001 suffixes
+                               ?.replace(/_/g, ' ')                    // Generic underscore to space
+                               ?.toUpperCase() || 'SHELF'}
                           </button>
                         ))}
                     </div>
