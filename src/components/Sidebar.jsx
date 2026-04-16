@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Upload, Download, Layers, Box, ChevronDown, ChevronUp, X, Settings2, HelpCircle } from 'lucide-react'
+import { Upload, Download, Layers, Box, ChevronDown, ChevronUp, ChevronRight, X, Monitor } from 'lucide-react'
 import ProductThumbnail from './ProductThumbnail'
 import MaterialEditor from './MaterialEditor'
 import CustomProductCreator from './CustomProductCreator'
@@ -179,14 +179,19 @@ export default function Sidebar({
                 })()}
               </div>
               <div className="flex flex-col text-left overflow-hidden">
-                <span className="text-[10px] font-black uppercase tracking-widest text-accent mb-0.5">Change Display</span>
-                <span className="text-xs font-bold text-text-main truncate w-full">
-                  {(() => {
-                    const active = displayLibrary.find(d => currentDisplayUrl.includes(d.url))
-                    return active ? active.name : 'Custom Display'
-                  })()}
-                </span>
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-accent/20 flex items-center justify-center text-accent group-hover:scale-110 transition-transform">
+                    <Monitor size={20} />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-text-dim">Change Display</span>
+                    <span className="text-xs font-bold text-text-main truncate max-w-[140px]">
+                      {currentDisplayUrl.split('/').pop().replace('.glb', '').replace(/_/g, ' ')}
+                    </span>
+                  </div>
+                </div>
               </div>
+              <ChevronRight size={16} className="text-text-dim/40 group-hover:translate-x-1 transition-transform" />
             </button>
           </SidebarSection>
 
@@ -240,80 +245,13 @@ export default function Sidebar({
           </div>
         </SidebarCategory>
 
-        {/* ─── EDIT PRODUCTS CATEGORY ─── */}
-        {(() => {
-          const hasPlacements = Object.values(placements).some(p => p.items?.length > 0)
-          return (
-            <SidebarCategory 
-              title="Edit Products" 
-              icon={Settings2} 
-              defaultOpen={false}
-              disabled={!hasPlacements}
-              alert="Add product before editing."
-            >
-              <div className="space-y-4 pt-2">
-                
-                {/* Shelf Selection List */}
-                <div className="space-y-1 px-1">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-text-dim/40 ml-1">Shelf List</span>
-                  {Object.keys(placements).length > 0 ? (
-                    <div className="grid grid-cols-1 gap-1">
-                      {Object.entries(placements)
-                        .sort(([, a], [, b]) => {
-                          const nameA = a?.mesh?.name || ''
-                          const nameB = b?.mesh?.name || ''
-                          return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' })
-                        })
-                        .map(([uuid, p]) => (
-                          <button 
-                            key={uuid}
-                            onClick={() => onSelectShelf(uuid)}
-                            className={`w-full text-left px-3 py-2 rounded-lg text-[10px] font-bold transition-all border ${
-                              activeShelfId === uuid 
-                                ? 'bg-accent/20 border-accent text-white shadow-[0_0_15px_rgba(0,240,255,0.15)]' 
-                                : 'bg-black/5 border-black/5 text-text-main/60 hover:bg-black/10'
-                            }`}
-                          >
-                             {p?.mesh?.name
-                               ?.replace(/[ _]?(col|ind)(\b|$)/gi, '') // Remove technical suffixes (underscore, space, or none)
-                               ?.replace(/\.\d+$/g, '')               // Remove Blender .001 suffixes
-                               ?.replace(/_/g, ' ')                    // Generic underscore to space
-                               ?.toUpperCase() || 'SHELF'}
-                          </button>
-                        ))}
-                    </div>
-                  ) : (
-                    <div className="text-[10px] text-white/20 italic px-2 py-2">No shelves populated.</div>
-                  )}
-                </div>
-
-                {/* Granular Active Editor */}
-                {activeShelfId && placements[activeShelfId] ? (
-                  <div className="pt-4 border-t border-white/10">
-                    <EditProductSection 
-                      shelfId={activeShelfId}
-                      placement={placements[activeShelfId]}
-                      onUpdate={onUpdateShelf}
-                    />
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-8 px-4 text-center border border-dashed border-white/5 rounded-xl bg-white/5">
-                    <HelpCircle size={18} className="text-text-dim/20 mb-2" />
-                    <span className="text-[10px] text-text-dim/50 italic leading-relaxed">Select a shelf from the list or click one in the 3D scene to edit.</span>
-                  </div>
-                )}
-              </div>
-            </SidebarCategory>
-          )
-        })()}
-
       </div>
 
       {/* Export */}
       <div className="pt-5 mt-auto border-t border-glass-border">
         <button
           onClick={onExport}
-          className="w-full py-4 rounded-xl bg-text-main text-white font-bold text-sm tracking-wide flex items-center justify-center gap-2 hover:bg-accent hover:text-white hover:shadow-[0_0_20px_rgba(0,136,255,0.3)] transition-all"
+          className="w-full py-4 rounded-xl bg-text-main text-white font-bold text-sm tracking-wide flex items-center justify-center gap-2 hover:bg-zinc-800 hover:shadow-[0_0_20px_rgba(0,136,255,0.3)] transition-all"
         >
           <Download size={18} />
           EXPORT PNG

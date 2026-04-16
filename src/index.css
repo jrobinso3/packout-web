@@ -4,8 +4,8 @@
   --color-canvas-bg: #f5f7f9;
   --color-glass-bg: rgba(255, 255, 255, 0.7);
   --color-glass-border: rgba(0, 0, 0, 0.1);
-  --color-text-main: #2d3436;
-  --color-text-dim: #636e72;
+  --color-text-main: #2d3436; /* Zinc-800 equivalent */
+  --color-text-dim: #52525b;  /* Zinc-600 equivalent */
   --color-accent: #0088ff;
   --color-secondary: #8b5cf6;
   --font-sans: "Inter", system-ui, sans-serif;
@@ -232,11 +232,8 @@ body, html, #root {
   bottom: 0;
   left: 0;
   right: 0;
-  background: rgba(0,0,0,0.75);
-  color: #ffffff;
-  font-size: 9px;
-  font-weight: 700;
-  text-align: center;
+  background: rgba(0,0,0,0.85);
+  color: var(--color-text-dim);
   padding: 2px 0;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -354,7 +351,7 @@ body, html, #root {
 .mat-group-count {
   font-size: 9px;
   background: rgba(0, 240, 255, 0.15);
-  color: #ffffff;
+  color: var(--color-text-main);
   padding: 1px 5px;
   border-radius: 10px;
   font-weight: 700;
@@ -457,14 +454,16 @@ body, html, #root {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  border: 2px dashed rgba(255,255,255,0.15);
-  border-radius: 10px;
-  padding: 18px 8px;
-  transition: border-color 0.15s, background 0.15s;
+  border: 2px dashed rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 12px;
+  padding: 24px 8px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .cp-drop-zone:hover {
-  border-color: rgba(0, 240, 255, 0.5);
-  background: rgba(0, 240, 255, 0.04);
+  border-color: rgba(0, 136, 255, 0.4);
+  background: rgba(0, 136, 255, 0.05);
+  transform: translateY(-1px);
 }
 
 /* Image preview */
@@ -504,20 +503,22 @@ body, html, #root {
 /* Dimension number inputs */
 .cp-dim-input {
   width: 100%;
-  background: rgba(255,255,255,0.07);
-  border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
   color: var(--color-text-main);
   font-size: 11px;
   font-family: inherit;
-  padding: 4px 6px;
+  font-weight: 600;
+  padding: 6px 10px;
   outline: none;
-  transition: border-color 0.15s;
+  transition: all 0.2s ease;
 }
-  .cp-dim-input::placeholder { color: rgba(255,255,255,0.6); }
+.cp-dim-input::placeholder { color: #9ca3af; } /* Zinc-400 equivalent */
 .cp-dim-input:focus {
-  border-color: rgba(0, 240, 255, 0.5);
-  box-shadow: 0 0 0 2px rgba(0, 240, 255, 0.1);
+  border-color: #0088ff;
+  background: white;
+  box-shadow: 0 0 0 3px rgba(0, 136, 255, 0.15);
 }
 
 /* Add button */
@@ -525,26 +526,33 @@ body, html, #root {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-  margin-top: 6px;
-  padding: 7px 12px;
-  border-radius: 7px;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 12px;
   font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
+  font-weight: 800;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   cursor: pointer;
   border: none;
-  background: rgba(0, 240, 255, 0.15);
-  color: #00f0ff;
-  transition: background 0.15s, color 0.15s, opacity 0.15s;
+  background: var(--color-accent);
+  color: white;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 12px rgba(0, 136, 255, 0.2);
 }
 .cp-add-btn:hover:not(:disabled) {
-  background: rgba(0, 240, 255, 0.3);
+  background: #0077ee;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(0, 136, 255, 0.3);
+}
+.cp-add-btn:active:not(:disabled) {
+  transform: translateY(0);
 }
 .cp-add-btn:disabled {
-  opacity: 0.35;
+  opacity: 0.2;
   cursor: not-allowed;
+  filter: grayscale(1);
 }
 /* ─── Properties Panel ───────────────────────────────────────── */
 .shadow-3xl {
@@ -559,7 +567,7 @@ body, html, #root {
   border-radius: 10px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: #666;
   border-radius: 10px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {

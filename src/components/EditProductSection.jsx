@@ -162,10 +162,8 @@ export default function EditProductSection({ shelfId, placement, onUpdate }) {
 
               </div>
 
-              {/* Toggles (Full Width) */}
-              <div className="flex flex-col gap-0.5 pt-1 border-t border-white/5 mt-0.5">
                 {/* Stacking Toggle */}
-                <div className="flex items-center justify-between bg-white/5 py-1 px-2 rounded-lg border border-white/5">
+                <div className="flex items-center justify-between bg-black/5 py-1 px-2 rounded-lg border border-black/5">
                   <span className="text-[10px] font-bold uppercase tracking-wide text-text-dim">Stack Product High</span>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input 
@@ -174,12 +172,12 @@ export default function EditProductSection({ shelfId, placement, onUpdate }) {
                       checked={item.stackVertical}
                       onChange={(e) => updateItem(item.id, { stackVertical: e.target.checked })}
                     />
-                    <div className="w-8 h-4 bg-black/40 border border-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-secondary after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-secondary/40"></div>
+                    <div className="w-8 h-4 bg-black/40 border border-black/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-secondary after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-secondary/40"></div>
                   </label>
                 </div>
 
                 {/* Auto-Fit Toggle (Shelf-Wide Linked) */}
-                <div className="flex items-center justify-between bg-white/5 py-1 px-2 rounded-lg border border-white/5">
+                <div className="flex items-center justify-between bg-black/5 py-1 px-2 rounded-lg border border-black/5">
                   <div className="flex items-center gap-1.5">
                     <span className="text-[10px] font-bold uppercase tracking-wide text-text-dim">Auto-Fit</span>
                     <Link size={10} className="text-secondary/60 translate-y-[0.5px]" />
@@ -194,10 +192,9 @@ export default function EditProductSection({ shelfId, placement, onUpdate }) {
                         onUpdate(shelfId, items.map(it => ({ ...it, autoFit: newVal })))
                       }}
                     />
-                    <div className="w-8 h-4 bg-black/40 border border-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-secondary after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-secondary/40"></div>
+                    <div className="w-8 h-4 bg-black/40 border border-black/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-secondary after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-secondary/40"></div>
                   </label>
                 </div>
-              </div>
             </div>
           ))}
         </div>

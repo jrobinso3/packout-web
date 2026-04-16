@@ -133,12 +133,12 @@ export default function PropertiesPanel({ placements, unitPrices, unitCosts, onU
             {reportData.rows.map((row) => (
               <tr key={row.product.id} className="group transition-all hover:translate-x-0.5">
                 {/* Qty */}
-                <td className="px-1 py-2 text-center bg-white/5 first:rounded-l-xl last:rounded-r-xl border-y border-l border-white/5 transition-colors group-hover:bg-white/10">
+                <td className="px-1 py-2 text-center bg-black/5 first:rounded-l-xl last:rounded-r-xl border-y border-l border-black/5 transition-colors group-hover:bg-black/10">
                   <span className="text-xs font-black text-accent tabular-nums">{row.quantity}</span>
                 </td>
                 
                 {/* Name */}
-                <td className="px-2 py-2 bg-white/5 first:rounded-l-xl last:rounded-r-xl border-y border-white/5 group-hover:bg-white/10">
+                <td className="px-2 py-2 bg-black/5 first:rounded-l-xl last:rounded-r-xl border-y border-black/5 group-hover:bg-black/10">
                   <div className="flex flex-col">
                     <span className="text-[11px] font-bold text-text-main truncate max-w-[100px]">{row.product.name?.replace(/\.glb$/i, '')}</span>
                     <span className="text-[8px] text-text-dim uppercase tracking-tighter opacity-50">SKU-{row.product.id.slice(-4).toUpperCase()}</span>
@@ -146,8 +146,8 @@ export default function PropertiesPanel({ placements, unitPrices, unitCosts, onU
                 </td>
                 
                 {/* List Price (Input) */}
-                <td className="px-2 py-2 bg-white/5 first:rounded-l-xl last:rounded-r-xl border-y border-white/5 group-hover:bg-white/10">
-                  <div className="flex items-center gap-1 bg-black/20 rounded-lg px-2 py-1 border border-white/5 focus-within:border-accent/40 transition-colors">
+                <td className="px-2 py-2 bg-black/5 first:rounded-l-xl last:rounded-r-xl border-y border-black/5 group-hover:bg-black/10">
+                  <div className="flex items-center gap-1 bg-white/60 rounded-lg px-2 py-1 border border-black/5 focus-within:border-accent/40 transition-colors">
                     <span className="text-[10px] text-text-dim/60">$</span>
                     <input 
                       type="number"
@@ -155,14 +155,14 @@ export default function PropertiesPanel({ placements, unitPrices, unitCosts, onU
                       placeholder="0.00"
                       value={unitPrices[row.product.id] || ''}
                       onChange={(e) => onUnitPriceChange(row.product.id, parseFloat(e.target.value) || 0)}
-                      className="w-full bg-transparent text-[11px] font-bold text-text-main outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-text-dim/20"
+                      className="w-full bg-transparent text-[11px] font-bold text-text-main outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-text-main/20"
                     />
                   </div>
                 </td>
 
                 {/* Unit Cost (Input) */}
-                <td className="px-2 py-2 bg-white/5 first:rounded-l-xl last:rounded-r-xl border-y border-white/5 group-hover:bg-white/10">
-                  <div className="flex items-center gap-1 bg-black/20 rounded-lg px-2 py-1 border border-white/5 focus-within:border-secondary/40 transition-colors">
+                <td className="px-2 py-2 bg-black/5 first:rounded-l-xl last:rounded-r-xl border-y border-black/5 group-hover:bg-black/10">
+                  <div className="flex items-center gap-1 bg-white/60 rounded-lg px-2 py-1 border border-black/5 focus-within:border-secondary/40 transition-colors">
                     <span className="text-[10px] text-text-dim/60">$</span>
                     <input 
                       type="number"
@@ -176,14 +176,14 @@ export default function PropertiesPanel({ placements, unitPrices, unitCosts, onU
                 </td>
 
                 {/* Profit */}
-                <td className="px-2 py-2 text-right bg-white/5 first:rounded-l-xl last:rounded-r-xl border-y border-white/5 group-hover:bg-white/10">
+                <td className="px-2 py-2 text-right bg-black/5 first:rounded-l-xl last:rounded-r-xl border-y border-black/5 group-hover:bg-black/10">
                   <span className={`text-[11px] font-black tabular-nums ${row.profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                     ${row.profit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                 </td>
                 
                 {/* Total Price */}
-                <td className="px-2 py-2 text-right bg-white/5 first:rounded-l-xl last:rounded-r-xl border-y border-r border-white/5 group-hover:bg-white/10">
+                <td className="px-2 py-2 text-right bg-black/5 first:rounded-l-xl last:rounded-r-xl border-y border-r border-black/5 group-hover:bg-black/10">
                   <span className="text-[11px] font-black text-text-main tabular-nums">
                     ${row.totalPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>

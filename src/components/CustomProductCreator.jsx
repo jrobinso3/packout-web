@@ -7,7 +7,7 @@ const INCH_TO_M = 0.0254
 function DimInput({ label, value, onChange }) {
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-[9px] font-bold uppercase tracking-widest text-text-dim">{label} (in)</label>
+      <label className="text-[9px] font-black uppercase tracking-[0.2em] text-text-dim">{label} (in)</label>
       <input
         type="number"
         min="0.01"
@@ -80,16 +80,16 @@ export default function CustomProductCreator({ onAdd }) {
 
       {/* Image upload / preview */}
       {previewUrl ? (
-        <div className="cp-preview-wrap">
+        <div className="cp-preview-wrap shadow-inner border-black/5">
           <img src={previewUrl} className="cp-preview-img" alt="preview" />
-          <button className="cp-clear-btn" onClick={clear} title="Remove">
+          <button className="cp-clear-btn shadow-lg" onClick={clear} title="Remove">
             <X size={12} />
           </button>
         </div>
       ) : (
-        <label className="cp-drop-zone">
-          <ImagePlus size={22} className="text-text-main" />
-          <span className="text-xs text-text-dim mt-1">Upload product PNG</span>
+        <label className="cp-drop-zone group">
+          <ImagePlus size={22} className="text-accent group-hover:scale-110 transition-transform" />
+          <span className="text-[10px] font-black uppercase tracking-widest text-text-main mt-2">Upload product PNG</span>
           <input
             ref={fileRef}
             type="file"
@@ -101,9 +101,9 @@ export default function CustomProductCreator({ onAdd }) {
       )}
 
       {/* Name and dimensions side-by-side for compactness */}
-      <div className="flex flex-col gap-2 mt-1">
-        <div className="flex flex-col gap-1">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-text-dim">Product Name</label>
+      <div className="flex flex-col gap-3 mt-2">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[9px] font-black uppercase tracking-[0.2em] text-text-dim">Product Name</label>
           <input
             type="text"
             value={name}
@@ -124,13 +124,9 @@ export default function CustomProductCreator({ onAdd }) {
       <button
         onClick={handleAdd}
         disabled={!ready}
-        className={`cp-add-btn transition-all duration-200 ${
-          ready 
-            ? 'bg-accent/20 text-accent hover:bg-accent hover:text-black shadow-[0_0_15px_rgba(0,240,255,0.2)]' 
-            : 'opacity-40 cursor-not-allowed'
-        }`}
+        className="cp-add-btn group"
       >
-        <Plus size={14} strokeWidth={3} />
+        <Plus size={14} strokeWidth={3} className="group-hover:rotate-90 transition-transform" />
         <span>Create Product</span>
       </button>
     </div>

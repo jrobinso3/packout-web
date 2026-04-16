@@ -77,10 +77,21 @@ function StandardProductBatch({ product, matrices }) {
   )
 }
 
-function ProductGroup({ dropzoneMesh, items = [] }) {
+function ProductGroup({ dropzoneMesh, items = [], rotation = 0 }) {
   const groups = useMemo(() => {
     if (!items.length) return new Map()
     
+    // R3F applies rotation-y to the Three.js scene during the commit phase, but
+    // useMemo runs during the render phase — so the scene rotation is one cycle
+    // stale when this recalculates. Fix: walk up to the GLTF scene root and
+    // apply the rotation manually before recomputing world matrices.
+    let sceneRoot = dropzoneMesh
+    while (sceneRoot.parent && sceneRoot.parent.type !== 'Scene') {
+      sceneRoot = sceneRoot.parent
+    }
+    sceneRoot.rotation.y = (rotation * Math.PI) / 180
+    dropzoneMesh.updateMatrixWorld(true)
+
     const worldScale = new THREE.Vector3()
     dropzoneMesh.getWorldScale(worldScale)
     if (worldScale.x === 0) worldScale.x = 1
@@ -154,7 +165,7 @@ function ProductGroup({ dropzoneMesh, items = [] }) {
     })
 
     return map
-  }, [dropzoneMesh, items])
+  }, [dropzoneMesh, items, rotation])
 
   return (
     <group>
@@ -171,7 +182,7 @@ function ProductGroup({ dropzoneMesh, items = [] }) {
   )
 }
 
-export default function PlacementsRenderer({ placements }) {
+export default function PlacementsRenderer({ placements, rotation = 0 }) {
   return (
     <group>
       {Object.entries(placements).map(([uuid, placement]) => (
@@ -179,6 +190,7 @@ export default function PlacementsRenderer({ placements }) {
           key={uuid}
           dropzoneMesh={placement.mesh}
           items={placement.items}
+          rotation={rotation}
         />
       ))}
     </group>

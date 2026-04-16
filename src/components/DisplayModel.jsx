@@ -12,7 +12,7 @@ function prettifyName(name) {
     .trim()
 }
 
-export default function DisplayModel({ url, onMaterialsReady, onLoaded }) {
+export default function DisplayModel({ url, onMaterialsReady, onLoaded, rotation = 0 }) {
   const { scene } = useGLTF(url)
 
   // We mutate the pristine scene directly instead of cloning it.
@@ -32,7 +32,7 @@ export default function DisplayModel({ url, onMaterialsReady, onLoaded }) {
       if (child.isMesh) {
         const n = child.name.toLowerCase()
         // Only modify the dropzones. Leave the rest of the display completely untouched!
-        const isCollider = n.includes('_col') || n.includes('col')
+        const isCollider = n.includes('_col') || n === 'col'
         const isVisual   = n.includes('_ind') || n.includes('dropzone')
 
         if (isCollider) {
@@ -128,5 +128,5 @@ export default function DisplayModel({ url, onMaterialsReady, onLoaded }) {
     }
   }, [scene, onMaterialsReady, onLoaded])
 
-  return <primitive object={scene} position={[0, -1, 0]} />
+  return <primitive object={scene} position={[0, -1, 0]} rotation-y={(rotation * Math.PI) / 180} />
 }

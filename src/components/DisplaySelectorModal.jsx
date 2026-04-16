@@ -29,16 +29,18 @@ export default function DisplaySelectorModal({ currentUrl, setDisplayUrl, onClos
       <div className="relative w-full max-w-5xl bg-glass-bg border border-glass-border rounded-[2.5rem] shadow-3xl overflow-hidden flex flex-col max-h-full animate-in zoom-in-95 duration-300">
         
         {/* Header */}
-        <div className="flex items-center justify-between p-8 border-b border-white/5 bg-white/5">
+        <div className="flex items-center justify-between p-8 border-b border-black/5 bg-black/5">
           <div className="flex flex-col gap-1">
-            <h2 className="text-3xl font-black tracking-tight text-white uppercase">Select Display</h2>
+            <h2 className="text-xl font-black uppercase tracking-[0.2em] text-text-main">
+            Display Gallery
+          </h2>
             <p className="text-text-dim text-sm font-medium">Choose a fixture from our library or upload your own 3D model.</p>
           </div>
           <button 
             onClick={onClose}
-            className="w-12 h-12 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-all border border-white/5"
+            className="w-10 h-10 rounded-full bg-black/5 hover:bg-black/10 flex items-center justify-center text-text-dim/40 hover:text-text-main transition-all border border-black/5"
           >
-            <X size={24} />
+            <X size={20} />
           </button>
         </div>
 
@@ -49,7 +51,7 @@ export default function DisplaySelectorModal({ currentUrl, setDisplayUrl, onClos
             {/* Gallery Grid */}
             <div className="lg:col-span-8 space-y-12">
               {isLoading ? (
-                <div className="flex flex-col items-center justify-center py-20 gap-4 text-accent/40 bg-white/5 rounded-3xl border border-white/5">
+                <div className="flex flex-col items-center justify-center py-20 gap-4 text-accent/40 bg-black/5 rounded-3xl border border-black/5">
                   <Loader2 size={40} className="animate-spin" />
                   <span className="text-[10px] font-black uppercase tracking-widest">Scanning Catalog...</span>
                 </div>
@@ -68,7 +70,7 @@ export default function DisplaySelectorModal({ currentUrl, setDisplayUrl, onClos
                       <span className="text-[10px] font-black uppercase tracking-[0.3em] text-accent/80 whitespace-nowrap">
                         {category}
                       </span>
-                      <div className="h-px flex-1 bg-white/5" />
+                      <div className="h-px flex-1 bg-black/5" />
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -83,7 +85,7 @@ export default function DisplaySelectorModal({ currentUrl, setDisplayUrl, onClos
                             className={`group relative flex flex-col rounded-3xl border-2 transition-all overflow-hidden ${
                               isActive 
                                 ? 'border-accent bg-accent/5 shadow-[0_0_30px_rgba(0,240,255,0.1)]' 
-                                : 'border-white/5 bg-white/5 hover:border-white/20 hover:bg-white/10'
+                                : 'border-black/5 bg-black/5 hover:border-black/20 hover:bg-black/10'
                             }`}
                           >
                             {/* Image Preview */}
@@ -102,7 +104,7 @@ export default function DisplaySelectorModal({ currentUrl, setDisplayUrl, onClos
 
                             {/* Info */}
                             <div className="p-5 flex flex-col gap-1 text-left">
-                              <span className="text-lg font-bold text-white tracking-tight">{d.name}</span>
+                              <span className="text-[11px] font-bold text-text-main truncate">{d.name?.replace(/\.glb$/i, '')}</span>
                               <span className="text-[10px] font-black uppercase tracking-widest text-text-dim/60">Standard Fixture</span>
                             </div>
                           </button>

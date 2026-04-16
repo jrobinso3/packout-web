@@ -5,6 +5,7 @@ import { Canvas, useThree, useFrame } from '@react-three/fiber'
 import DisplayModel from './components/DisplayModel'
 import DropController from './components/DropController'
 import PlacementsRenderer from './components/PlacementsRenderer'
+import ShelfFloatingMenu from './components/ShelfFloatingMenu'
 
 // ─── CameraAutoFit Helper ──────────────────────────────────────────────────
 // Calculates the bounding box of the loaded model and moves the camera
@@ -113,8 +114,10 @@ export default function ConfiguratorCanvas({
   placements,
   activeShelfId,
   onSelectShelf,
+  onUpdateShelf,
   onMaterialsReady,
   onExportReady,
+  rotation = 0
 }) {
   const helperGroupRef = useRef()
   const [loadedModel, setLoadedModel] = useState(null)
@@ -159,13 +162,39 @@ export default function ConfiguratorCanvas({
                 url={displayUrl} 
                 onMaterialsReady={onMaterialsReady} 
                 onLoaded={setLoadedModel}
+                rotation={rotation}
               />
             )}
           </Suspense>
 
           <Suspense fallback={null}>
-            {placements && <PlacementsRenderer placements={placements} />}
+            {placements && <PlacementsRenderer placements={placements} rotation={rotation} />}
           </Suspense>
+
+          {/* ─── SPATIAL UI: FLOATING EDIT MENU ─── */}
+          {activeShelfId && placements[activeShelfId] && (() => {
+            const placement = placements[activeShelfId]
+            const mesh = placement.mesh
+            const center = new THREE.Vector3()
+            
+            if (mesh.geometry) {
+              if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox()
+              mesh.geometry.boundingBox.getCenter(center)
+              mesh.updateMatrixWorld() // Force world matrix update for accurate tethering during rotation
+              mesh.localToWorld(center)
+            }
+
+            return (
+              <ShelfFloatingMenu 
+                key={`menu-${activeShelfId}`}
+                shelfId={activeShelfId}
+                placement={placement}
+                onUpdate={onUpdateShelf}
+                onClose={() => onSelectShelf(null)}
+                anchorPosition={center}
+              />
+            )
+          })()}
 
           <group ref={helperGroupRef}>
             <Grid
