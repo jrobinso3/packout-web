@@ -31,29 +31,43 @@ export default function DisplayModel({ url, onMaterialsReady }) {
       if (child.isMesh) {
         const n = child.name.toLowerCase()
         // Only modify the dropzones. Leave the rest of the display completely untouched!
-        if (n.includes('dropzone')) {
-          if (n.includes('col')) {
-            // ── Invisible collision proxy ──────────────────────────────────
-            // visible=false hides it from the renderer but Three.js raycaster
-            // still tests it, so it acts as a perfect invisible hit volume.
-            child.visible = false
-            child.userData.isDropzone = true
-            // Store the parent group so DropController can find the visual
-            // siblings when it needs to toggle the hover highlight.
-            child.userData.visualGroup = child.parent
-          } else {
-            // ── Visual wire tubes ──────────────────────────────────────────
-            // Each gets its own material instance so hover can be toggled
-            // independently per slot.
-            child.material = new THREE.MeshBasicMaterial({
-              color: 0x00f0ff,
-              wireframe: true,
-              transparent: true,
-              opacity: 0.2,
-              side: THREE.DoubleSide
-            })
-            child.userData.isDropzoneVisual = true
+        const isCollider = n.includes('_col') || n.includes('col')
+        const isVisual   = n.includes('_ind') || n.includes('dropzone')
+
+        if (isCollider) {
+          // ── Invisible collision proxy ──────────────────────────────────
+          // visible=false hides it from the renderer but Three.js raycaster
+          // still tests it, so it acts as a perfect invisible hit volume.
+          child.visible = false
+          child.userData.isDropzone = true
+          // Store the parent group so DropController can find the visual
+          // siblings when it needs to toggle the hover highlight.
+          child.userData.visualGroup = child.parent
+        } else if (isVisual) {
+          // ── Visual guide companion ─────────────────────────────────────
+          // Maintain original green albedo, but enable emissive support
+          if (child.material) {
+            const oldMat = child.material
+            
+            if (!oldMat.emissive) {
+              child.material = new THREE.MeshStandardMaterial({
+                color: oldMat.color.clone(),
+                emissive: new THREE.Color(0x000000),
+                transparent: true,
+                opacity: 0.2,
+                side: THREE.DoubleSide,
+                metalness: 0,
+                roughness: 1
+              })
+            } else {
+              child.material = oldMat.clone()
+              child.material.emissive.set(0x000000)
+              child.material.transparent = true
+              child.material.opacity = 0.2
+              child.material.side = THREE.DoubleSide
+            }
           }
+          child.userData.isDropzoneVisual = true
         } else {
           // Assure the original materials cast and receive shadows properly
           child.castShadow = true

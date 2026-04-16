@@ -148,13 +148,34 @@ export default function Sidebar({
       <div className="flex-1 overflow-y-auto space-y-8 pr-1 custom-scrollbar">
 
         {/* ─── DISPLAY CATEGORY ─── */}
-        <SidebarCategory title="Display" icon={Layers}>
+        <SidebarCategory title="Display" icon={Layers} defaultOpen={true}>
           
+          <SidebarSection title="Display Gallery" defaultOpen={true}>
+             <div className="grid grid-cols-1 gap-2 mt-2">
+                {[
+                  { id: 'floorstand', name: 'Floorstand 3S', url: 'Floorstand_3S.glb' },
+                  { id: 'pallet', name: 'Half Pallet', url: 'QDRP_Half_Pallet_Simplified.glb' }
+                ].map(d => (
+                  <button
+                    key={d.id}
+                    onClick={() => setDisplayUrl(`${import.meta.env.BASE_URL}displays/${d.url}`)}
+                    className="w-full text-left p-3 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 hover:border-accent/40 transition-all group flex items-center justify-between"
+                  >
+                    <div className="flex flex-col">
+                      <span className="text-[11px] font-bold text-text-main group-hover:text-accent transition-colors">{d.name}</span>
+                      <span className="text-[9px] text-text-dim/50 uppercase tracking-tighter">GLB Model</span>
+                    </div>
+                    <Box size={14} className="text-text-dim/20 group-hover:text-accent/40 transition-colors" />
+                  </button>
+                ))}
+             </div>
+          </SidebarSection>
+
           <SidebarSection title="Model Upload">
-             <div className="flex flex-col gap-2 mt-2">
-                <label className="flex flex-col items-center justify-center cursor-pointer p-4 border border-dashed border-white/10 rounded-xl hover:border-accent hover:bg-white/5 transition-all w-full group">
-                  <Upload size={18} className="text-text-main mb-1 group-hover:text-accent transition-colors" />
-                  <span className="text-[10px] font-medium text-text-dim">Upload GLB</span>
+             <div className="flex flex-col gap-2 mt-1">
+                <label className="flex flex-col items-center justify-center cursor-pointer p-3 border border-dashed border-white/10 rounded-xl hover:border-accent hover:bg-white/5 transition-all w-full group">
+                  <Upload size={16} className="text-text-main mb-1 group-hover:text-accent transition-colors" />
+                  <span className="text-[9px] font-medium text-text-dim">External GLB</span>
                   <input type="file" className="hidden" accept=".glb,.gltf" onChange={handleDisplayUpload} />
                 </label>
              </div>
@@ -228,19 +249,25 @@ export default function Sidebar({
                   <span className="text-[9px] font-black uppercase tracking-widest text-text-dim/40 ml-1">Shelf List</span>
                   {Object.keys(placements).length > 0 ? (
                     <div className="grid grid-cols-1 gap-1">
-                      {Object.entries(placements).map(([uuid, p]) => (
-                        <button 
-                          key={uuid}
-                          onClick={() => onSelectShelf(uuid)}
-                          className={`w-full text-left px-3 py-2 rounded-lg text-[10px] font-bold transition-all border ${
-                            activeShelfId === uuid 
-                              ? 'bg-accent/20 border-accent text-white shadow-[0_0_15px_rgba(0,240,255,0.15)]' 
-                              : 'bg-black/5 border-black/5 text-text-main/60 hover:bg-black/10'
-                          }`}
-                        >
-                           {p.mesh.name?.replace(/_/g, ' ').toUpperCase() || 'SHELF'}
-                        </button>
-                      ))}
+                      {Object.entries(placements)
+                        .sort(([, a], [, b]) => {
+                          const nameA = a.mesh.name || ''
+                          const nameB = b.mesh.name || ''
+                          return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' })
+                        })
+                        .map(([uuid, p]) => (
+                          <button 
+                            key={uuid}
+                            onClick={() => onSelectShelf(uuid)}
+                            className={`w-full text-left px-3 py-2 rounded-lg text-[10px] font-bold transition-all border ${
+                              activeShelfId === uuid 
+                                ? 'bg-accent/20 border-accent text-white shadow-[0_0_15px_rgba(0,240,255,0.15)]' 
+                                : 'bg-black/5 border-black/5 text-text-main/60 hover:bg-black/10'
+                            }`}
+                          >
+                             {p.mesh.name?.replace(/_/g, ' ').toUpperCase() || 'SHELF'}
+                          </button>
+                        ))}
                     </div>
                   ) : (
                     <div className="text-[10px] text-white/20 italic px-2 py-2">No shelves populated.</div>

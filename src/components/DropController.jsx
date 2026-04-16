@@ -2,12 +2,12 @@ import { useThree } from '@react-three/fiber'
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 
-const DEFAULT_COLOR = new THREE.Color(0x00f0ff)
-const HOVER_COLOR   = new THREE.Color(0x00ffff)
+const DEFAULT_COLOR = new THREE.Color(0x000000)
+const HOVER_COLOR   = new THREE.Color(0x44ff88)
 const ACTIVE_COLOR  = new THREE.Color(0xffffff)
 const DEFAULT_OPACITY = 0.2
-const HOVER_OPACITY   = 0.5
-const ACTIVE_OPACITY  = 0.8
+const HOVER_OPACITY   = 1
+const ACTIVE_OPACITY  = 1
 
 export default function DropController({ draggedProduct, onDisplayDrop, activeShelfId, onSelectShelf }) {
   const { gl, camera, scene } = useThree()
@@ -45,7 +45,7 @@ export default function DropController({ draggedProduct, onDisplayDrop, activeSh
 
         group.traverse(v => {
           if (v.userData.isDropzoneVisual) {
-            v.material.color.copy(color)
+            if (v.material.emissive) v.material.emissive.copy(color)
             v.material.opacity = opacity
           }
         })
@@ -94,7 +94,7 @@ export default function DropController({ draggedProduct, onDisplayDrop, activeSh
       if (!group) return
       group.traverse(child => {
         if (child.userData.isDropzoneVisual) {
-          child.material.color.copy(color)
+          if (child.material.emissive) child.material.emissive.copy(color)
           child.material.opacity = opacity
         }
       })
