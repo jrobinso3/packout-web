@@ -19,7 +19,8 @@ const syncGalleryPlugin = () => {
       .filter(f => f.toLowerCase().endsWith('.glb'))
       .map(f => {
         const id = f.replace(/\.glb$/i, '')
-        const name = id.replace(/_/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2')
+        const cleanId = id.replace(/\.\d+$/g, '')
+        const name = cleanId.replace(/_/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2')
         const thumb = fs.existsSync(path.join(previewsDir, `${id}.png`)) 
           ? `${id}.png` 
           : null

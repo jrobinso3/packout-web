@@ -5,6 +5,7 @@ import * as THREE from 'three'
 // Capitalize and pretty-print mesh names: "shelf1" → "Shelf 1", "floorstand" → "Floorstand"
 function prettifyName(name) {
   return name
+    .replace(/\.\d+$/g, '')          // Remove Blender .001 suffixes
     .replace(/_/g, ' ')
     .replace(/([a-z])(\d)/g, '$1 $2') // "shelf1" → "shelf 1"
     .replace(/\b\w/g, c => c.toUpperCase())
@@ -90,18 +91,20 @@ export default function DisplayModel({ url, onMaterialsReady, onLoaded }) {
             if (Array.isArray(child.material)) {
               child.material = child.material.map(processMat)
               child.material.forEach(mat => {
+                const cleanName = (mat.name || child.name || 'Unnamed').replace(/\.\d+$/g, '')
                 addToGroup(meshName, {
                   uuid: mat.uuid,
-                  name: mat.name || child.name || 'Unnamed',
+                  name: prettifyName(cleanName),
                   material: mat,
                 })
               })
             } else {
               child.material = processMat(child.material)
               const mat = child.material
+              const cleanName = (mat.name || child.name || 'Unnamed').replace(/\.\d+$/g, '')
               addToGroup(meshName, {
                 uuid: mat.uuid,
-                name: mat.name || child.name || 'Unnamed',
+                name: prettifyName(cleanName),
                 material: mat,
               })
             }

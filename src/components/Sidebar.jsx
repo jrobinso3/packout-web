@@ -80,7 +80,8 @@ export default function Sidebar({
   onSelectShelf,
   onUpdateShelf,
   onOpenDisplaySelector,
-  currentDisplayUrl
+  currentDisplayUrl,
+  displayLibrary
 }) {
   const [demoOpen, setDemoOpen]       = useState(false)
   const [customOpen, setCustomOpen]   = useState(false)
@@ -153,18 +154,14 @@ export default function Sidebar({
         <SidebarCategory title="Display" icon={Layers} defaultOpen={true}>
           
           {/* Active Model Summary & Change Trigger */}
-          <SidebarSection title="Active Framework" defaultOpen={true}>
+          <SidebarSection title="Display Structure" defaultOpen={true}>
             <button
               onClick={onOpenDisplaySelector}
               className="w-full mt-2 p-1.5 rounded-2xl border border-white/5 bg-white/5 hover:bg-white/10 hover:border-accent/40 transition-all group flex items-center gap-3 active:scale-[0.98]"
             >
               <div className="w-14 h-14 rounded-xl bg-black/40 border border-white/10 overflow-hidden flex-shrink-0 shadow-inner">
                 {(() => {
-                  const displayGallery = [
-                    { name: 'Floorstand 3S', url: 'Floorstand_3S.glb', thumb: 'Floorstand_3S.png' },
-                    { name: 'Half Pallet',   url: 'QDRP_Half_Pallet_Simplified.glb', thumb: 'Half_Pallet.png' }
-                  ]
-                  const active = displayGallery.find(d => currentDisplayUrl.includes(d.url))
+                  const active = displayLibrary.find(d => currentDisplayUrl.includes(d.url))
                   if (active) {
                     return (
                       <img 
@@ -182,14 +179,10 @@ export default function Sidebar({
                 })()}
               </div>
               <div className="flex flex-col text-left overflow-hidden">
-                <span className="text-[10px] font-black uppercase tracking-widest text-accent mb-0.5">Change Model</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-accent mb-0.5">Change Display</span>
                 <span className="text-xs font-bold text-text-main truncate w-full">
                   {(() => {
-                    const displayGallery = [
-                      { name: 'Floorstand 3S', url: 'Floorstand_3S.glb' },
-                      { name: 'Half Pallet',   url: 'QDRP_Half_Pallet_Simplified.glb' }
-                    ]
-                    const active = displayGallery.find(d => currentDisplayUrl.includes(d.url))
+                    const active = displayLibrary.find(d => currentDisplayUrl.includes(d.url))
                     return active ? active.name : 'Custom Display'
                   })()}
                 </span>

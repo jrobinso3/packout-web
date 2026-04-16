@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import * as THREE from 'three'
 import ConfiguratorCanvas from './ConfiguratorCanvas'
 import Sidebar from './components/Sidebar'
@@ -9,6 +9,14 @@ function App() {
   const [displayUrl, setDisplayUrl] = useState(`${import.meta.env.BASE_URL}displays/Floorstand_3S.glb`)
   const [draggedProduct, setDraggedProduct] = useState(null)
   const [isSelectorOpen, setIsSelectorOpen] = useState(false)
+  const [displayLibrary, setDisplayLibrary] = useState([])
+  
+  useEffect(() => {
+    fetch(`${import.meta.env.BASE_URL}displays/manifest.json`)
+      .then(res => res.json())
+      .then(data => setDisplayLibrary(data))
+      .catch(err => console.error('Error loading manifest:', err))
+  }, [])
   
   // Track placements as { [uuid]: { mesh, items: [] } }
   // Each item: { id, product, facings, stackVertical, spacing }
@@ -120,6 +128,7 @@ function App() {
         onUpdateShelf={handleUpdateShelf}
         onOpenDisplaySelector={() => setIsSelectorOpen(true)}
         currentDisplayUrl={displayUrl}
+        displayLibrary={displayLibrary}
       />
 
       <PropertiesPanel 
@@ -135,6 +144,7 @@ function App() {
           currentUrl={displayUrl}
           setDisplayUrl={handleSetDisplayUrl}
           onClose={() => setIsSelectorOpen(false)}
+          displayLibrary={displayLibrary}
         />
       )}
     </main>

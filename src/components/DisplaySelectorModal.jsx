@@ -1,22 +1,8 @@
 import { useState, useEffect } from 'react'
 import { X, Upload, Box, Check, Loader2 } from 'lucide-react'
 
-export default function DisplaySelectorModal({ currentUrl, setDisplayUrl, onClose }) {
-  const [displayLibrary, setDisplayLibrary] = useState([])
-  const [isLoading, setIsLoading] = useState(true)
-
-  useEffect(() => {
-    fetch(`${import.meta.env.BASE_URL}displays/manifest.json`)
-      .then(res => res.json())
-      .then(data => {
-        setDisplayLibrary(data)
-        setIsLoading(false)
-      })
-      .catch(err => {
-        console.error('Error loading displays:', err)
-        setIsLoading(false)
-      })
-  }, [])
+export default function DisplaySelectorModal({ currentUrl, setDisplayUrl, onClose, displayLibrary }) {
+  const isLoading = displayLibrary.length === 0
 
   const handleFileUpload = (e) => {
     const file = e.target.files?.[0]
