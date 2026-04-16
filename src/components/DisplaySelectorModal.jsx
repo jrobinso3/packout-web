@@ -47,55 +47,71 @@ export default function DisplaySelectorModal({ currentUrl, setDisplayUrl, onClos
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
             
             {/* Gallery Grid */}
-            <div className="lg:col-span-8 space-y-6">
-              <div className="flex items-center gap-3 mb-2">
-                <Box size={18} className="text-accent" />
-                <h3 className="text-xs font-black uppercase tracking-[0.2em] text-text-dim">Display Library</h3>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {isLoading ? (
-                  <div className="md:col-span-2 flex flex-col items-center justify-center py-20 gap-4 text-accent/40">
-                    <Loader2 size={40} className="animate-spin" />
-                    <span className="text-[10px] font-black uppercase tracking-widest">Scanning Catalog...</span>
+            <div className="lg:col-span-8 space-y-12">
+              {isLoading ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-4 text-accent/40 bg-white/5 rounded-3xl border border-white/5">
+                  <Loader2 size={40} className="animate-spin" />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Scanning Catalog...</span>
+                </div>
+              ) : (() => {
+                const groups = displayLibrary.reduce((acc, d) => {
+                  const cat = d.category || 'Fixtures'
+                  if (!acc[cat]) acc[cat] = []
+                  acc[cat].push(d)
+                  return acc
+                }, {})
+
+                return Object.entries(groups).map(([category, items]) => (
+                  <div key={category} className="space-y-6">
+                    <div className="flex items-center gap-3 px-1">
+                      <div className="h-px w-8 bg-accent/20" />
+                      <span className="text-[10px] font-black uppercase tracking-[0.3em] text-accent/80 whitespace-nowrap">
+                        {category}
+                      </span>
+                      <div className="h-px flex-1 bg-white/5" />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {items.map((d) => {
+                        const fullUrl = `${import.meta.env.BASE_URL}displays/${d.url}`
+                        const isActive = currentUrl === fullUrl
+
+                        return (
+                          <button
+                            key={d.id}
+                            onClick={() => handleSelect(d.url)}
+                            className={`group relative flex flex-col rounded-3xl border-2 transition-all overflow-hidden ${
+                              isActive 
+                                ? 'border-accent bg-accent/5 shadow-[0_0_30px_rgba(0,240,255,0.1)]' 
+                                : 'border-white/5 bg-white/5 hover:border-white/20 hover:bg-white/10'
+                            }`}
+                          >
+                            {/* Image Preview */}
+                            <div className="aspect-[16/10] overflow-hidden bg-black/40 relative">
+                              <img 
+                                src={`${import.meta.env.BASE_URL}previews/${d.thumb}`}
+                                alt={d.name}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                              />
+                              {isActive && (
+                                <div className="absolute top-4 right-4 w-8 h-8 rounded-full bg-accent flex items-center justify-center text-black shadow-lg">
+                                  <Check size={18} strokeWidth={3} />
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Info */}
+                            <div className="p-5 flex flex-col gap-1 text-left">
+                              <span className="text-lg font-bold text-white tracking-tight">{d.name}</span>
+                              <span className="text-[10px] font-black uppercase tracking-widest text-text-dim/60">Standard Fixture</span>
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
                   </div>
-                ) : displayLibrary.map((d) => {
-                  const fullUrl = `${import.meta.env.BASE_URL}displays/${d.url}`
-                  const isActive = currentUrl === fullUrl
-
-                  return (
-                    <button
-                      key={d.id}
-                      onClick={() => handleSelect(d.url)}
-                      className={`group relative flex flex-col rounded-3xl border-2 transition-all overflow-hidden ${
-                        isActive 
-                          ? 'border-accent bg-accent/5' 
-                          : 'border-white/5 bg-white/5 hover:border-white/20 hover:bg-white/10'
-                      }`}
-                    >
-                      {/* Image Preview */}
-                      <div className="aspect-[16/10] overflow-hidden bg-black/40 relative">
-                        <img 
-                          src={`${import.meta.env.BASE_URL}previews/${d.thumb}`}
-                          alt={d.name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                        />
-                        {isActive && (
-                          <div className="absolute top-4 right-4 w-8 h-8 rounded-full bg-accent flex items-center justify-center text-black shadow-lg">
-                            <Check size={18} strokeWidth={3} />
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Info */}
-                      <div className="p-5 flex flex-col gap-1 text-left">
-                        <span className="text-lg font-bold text-white tracking-tight">{d.name}</span>
-                        <span className="text-[10px] font-black uppercase tracking-widest text-text-dim/60">Standard Fixture</span>
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
+                ))
+              })()}
             </div>
 
             {/* Upload Sidebar */}

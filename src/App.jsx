@@ -6,7 +6,7 @@ import PropertiesPanel from './components/PropertiesPanel'
 import DisplaySelectorModal from './components/DisplaySelectorModal'
 
 function App() {
-  const [displayUrl, setDisplayUrl] = useState(`${import.meta.env.BASE_URL}displays/Floorstand_3S.glb`)
+  const [displayUrl, setDisplayUrl] = useState(`${import.meta.env.BASE_URL}displays/corrugate_displays/Floorstand_3S.glb`)
   const [draggedProduct, setDraggedProduct] = useState(null)
   const [isSelectorOpen, setIsSelectorOpen] = useState(false)
   const [displayLibrary, setDisplayLibrary] = useState([])

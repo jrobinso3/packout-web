@@ -2,37 +2,43 @@
   {
     "id": "15in_PDQ",
     "name": "15in PDQ",
-    "url": "15in_PDQ.glb",
-    "thumb": "15in_PDQ.png"
+    "url": "corrugate_displays/15in_PDQ.glb",
+    "thumb": "15in_PDQ.png",
+    "category": "Corrugate Displays"
   },
   {
     "id": "4-Sided_Pallet",
     "name": "4-Sided Pallet",
-    "url": "4-Sided_Pallet.glb",
-    "thumb": "4-Sided_Pallet.png"
+    "url": "corrugate_displays/4-Sided_Pallet.glb",
+    "thumb": "4-Sided_Pallet.png",
+    "category": "Corrugate Displays"
   },
   {
     "id": "Floorstand_3S",
     "name": "Floorstand 3S",
-    "url": "Floorstand_3S.glb",
-    "thumb": "Floorstand_3S.png"
+    "url": "corrugate_displays/Floorstand_3S.glb",
+    "thumb": "Floorstand_3S.png",
+    "category": "Corrugate Displays"
   },
   {
     "id": "NFL_Tray",
     "name": "NFL Tray",
-    "url": "NFL_Tray.glb",
-    "thumb": "NFL_Tray.png"
+    "url": "corrugate_displays/NFL_Tray.glb",
+    "thumb": "NFL_Tray.png",
+    "category": "Corrugate Displays"
   },
   {
     "id": "QDRP_Half_Pallet_Simplified",
     "name": "QDRP Half Pallet Simplified",
-    "url": "QDRP_Half_Pallet_Simplified.glb",
-    "thumb": "QDRP_Half_Pallet_Simplified.png"
+    "url": "corrugate_displays/QDRP_Half_Pallet_Simplified.glb",
+    "thumb": "QDRP_Half_Pallet_Simplified.png",
+    "category": "Corrugate Displays"
   },
   {
     "id": "Sidekick_4S_Simplified",
     "name": "Sidekick 4S Simplified",
-    "url": "Sidekick_4S_Simplified.glb",
-    "thumb": "Sidekick_4S_Simplified.png"
+    "url": "corrugate_displays/Sidekick_4S_Simplified.glb",
+    "thumb": "Sidekick_4S_Simplified.png",
+    "category": "Corrugate Displays"
   }
 ]
