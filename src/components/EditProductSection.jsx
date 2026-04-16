@@ -107,7 +107,7 @@ export default function EditProductSection({ shelfId, placement, onUpdate }) {
                       <div className="w-full h-full" style={{ backgroundColor: item.product.color }} />
                     )}
                   </div>
-                  <span className="text-[11px] font-bold text-text-main truncate">{item.product.name}</span>
+                  <span className="text-[11px] font-bold text-text-main truncate">{item.product.name?.replace(/\.glb$/i, '')}</span>
                 </div>
                 
                 <div className="flex items-center gap-1">

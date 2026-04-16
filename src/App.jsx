@@ -2,6 +2,7 @@ import { useState, useCallback, useRef } from 'react'
 import * as THREE from 'three'
 import ConfiguratorCanvas from './ConfiguratorCanvas'
 import Sidebar from './components/Sidebar'
+import PropertiesPanel from './components/PropertiesPanel'
 
 function App() {
   const [displayUrl, setDisplayUrl] = useState(`${import.meta.env.BASE_URL}displays/Floorstand_3S.glb`)
@@ -11,9 +12,19 @@ function App() {
   // Each item: { id, product, facings, stackVertical, spacing }
   const [placements, setPlacements] = useState({})
   const [activeShelfId, setActiveShelfId] = useState(null)
+  const [unitPrices, setUnitPrices] = useState({}) // product.id -> Number
+  const [unitCosts, setUnitCosts] = useState({})   // product.id -> Number
   
   const [displayMaterials, setDisplayMaterials] = useState([])
   const exportFnRef = useRef(null)
+  
+  const handleUnitPriceChange = useCallback((productId, price) => {
+    setUnitPrices(prev => ({ ...prev, [productId]: price }))
+  }, [])
+
+  const handleUnitCostChange = useCallback((productId, cost) => {
+    setUnitCosts(prev => ({ ...prev, [productId]: cost }))
+  }, [])
 
   const handleExportReady = useCallback((fn) => { exportFnRef.current = fn }, [])
   const handleExport = useCallback(() => { exportFnRef.current?.() }, [])
@@ -104,6 +115,13 @@ function App() {
         activeShelfId={activeShelfId}
         onSelectShelf={handleSelectShelf}
         onUpdateShelf={handleUpdateShelf}
+      />
+      <PropertiesPanel 
+        placements={placements}
+        unitPrices={unitPrices}
+        unitCosts={unitCosts}
+        onUnitPriceChange={handleUnitPriceChange}
+        onUnitCostChange={handleUnitCostChange}
       />
     </main>
   )

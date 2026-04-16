@@ -120,7 +120,7 @@ export default function Sidebar({
       >
         <ProductThumbnail product={product} />
       </div>
-      <span className="text-xs font-semibold text-center leading-tight text-text-main">{product.name}</span>
+      <span className="text-xs font-semibold text-center leading-tight text-text-main">{product.name?.replace(/\.glb$/i, '')}</span>
       {product.isCustom && (
         <button
           className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500/80 hover:bg-red-500 flex items-center justify-center"
@@ -171,7 +171,7 @@ export default function Sidebar({
              </div>
           </SidebarSection>
 
-          <SidebarSection title="Model Upload">
+          <SidebarSection title="Display Upload">
              <div className="flex flex-col gap-2 mt-1">
                 <label className="flex flex-col items-center justify-center cursor-pointer p-3 border border-dashed border-white/10 rounded-xl hover:border-accent hover:bg-white/5 transition-all w-full group">
                   <Upload size={16} className="text-text-main mb-1 group-hover:text-accent transition-colors" />
@@ -251,8 +251,8 @@ export default function Sidebar({
                     <div className="grid grid-cols-1 gap-1">
                       {Object.entries(placements)
                         .sort(([, a], [, b]) => {
-                          const nameA = a.mesh.name || ''
-                          const nameB = b.mesh.name || ''
+                          const nameA = a?.mesh?.name || ''
+                          const nameB = b?.mesh?.name || ''
                           return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' })
                         })
                         .map(([uuid, p]) => (
@@ -265,7 +265,7 @@ export default function Sidebar({
                                 : 'bg-black/5 border-black/5 text-text-main/60 hover:bg-black/10'
                             }`}
                           >
-                             {p.mesh.name
+                             {p?.mesh?.name
                                ?.replace(/[ _]?(col|ind)(\b|$)/gi, '') // Remove technical suffixes (underscore, space, or none)
                                ?.replace(/\.\d+$/g, '')               // Remove Blender .001 suffixes
                                ?.replace(/_/g, ' ')                    // Generic underscore to space
