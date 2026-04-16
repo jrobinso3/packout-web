@@ -65,7 +65,12 @@ export default function ShelfFloatingMenu({ shelfId, placement, onUpdate, onClos
       style={{ transform: 'translate(calc(-50% - 440px), -50%)' }}
       className="pointer-events-none select-none"
     >
-      <div className="pointer-events-auto bg-glass-bg backdrop-blur-2xl border border-glass-border rounded-[2rem] shadow-3xl w-[320px] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-300">
+      <div
+        className="pointer-events-auto bg-glass-bg backdrop-blur-2xl border border-glass-border rounded-[2rem] shadow-3xl w-[320px] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-300"
+        onPointerDown={e => e.stopPropagation()}
+        onPointerMove={e => e.stopPropagation()}
+        onPointerUp={e => e.stopPropagation()}
+      >
         
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-black/5 bg-black/5">

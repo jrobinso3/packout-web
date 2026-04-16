@@ -9,7 +9,7 @@ const DEFAULT_OPACITY = 0.2
 const HOVER_OPACITY   = 1
 const ACTIVE_OPACITY  = 1
 
-export default function DropController({ draggedProduct, onDisplayDrop, activeShelfId, onSelectShelf }) {
+export default function DropController({ draggedProduct, onDisplayDrop, activeShelfId, onSelectShelf, onSelectPart }) {
   const { gl, camera, scene } = useThree()
 
   // Refs let stable event handlers always read the latest prop values
@@ -18,38 +18,30 @@ export default function DropController({ draggedProduct, onDisplayDrop, activeSh
   const onSelectShelfRef   = useRef(onSelectShelf)
   const activeShelfIdRef  = useRef(activeShelfId)
   const hoveredMeshRef    = useRef(null)
+  const onSelectPartRef   = useRef(onSelectPart)
 
   useEffect(() => { draggedProductRef.current = draggedProduct }, [draggedProduct])
   useEffect(() => { onDisplayDropRef.current  = onDisplayDrop  }, [onDisplayDrop])
   useEffect(() => { onSelectShelfRef.current   = onSelectShelf   }, [onSelectShelf])
   useEffect(() => { activeShelfIdRef.current  = activeShelfId  }, [activeShelfId])
+  useEffect(() => { onSelectPartRef.current   = onSelectPart   }, [onSelectPart])
 
   // Sync visual states when activeShelfId changes externally
   useEffect(() => {
-    scene.traverse(child => {
-      if (child.userData.isDropzone) {
-        const isHovered = hoveredMeshRef.current === child
-        const isActive  = activeShelfId === child.uuid
-        const group = child.userData.visualGroup ?? child.parent
-        
-        let color = DEFAULT_COLOR
-        let opacity = DEFAULT_OPACITY
+    scene.traverse(node => {
+      if (!node.userData?.isDropzone) return
 
-        if (isActive) {
-          color = ACTIVE_COLOR
-          opacity = ACTIVE_OPACITY
-        } else if (isHovered) {
-          color = HOVER_COLOR
-          opacity = HOVER_OPACITY
+      const isActive = activeShelfId === node.uuid
+      const group    = node.userData.visualGroup ?? node.parent
+      const color    = isActive ? ACTIVE_COLOR   : DEFAULT_COLOR
+      const opacity  = isActive ? ACTIVE_OPACITY : DEFAULT_OPACITY
+
+      group.traverse(v => {
+        if (v.userData.isDropzoneVisual) {
+          if (v.material.emissive) v.material.emissive.copy(color)
+          v.material.opacity = opacity
         }
-
-        group.traverse(v => {
-          if (v.userData.isDropzoneVisual) {
-            if (v.material.emissive) v.material.emissive.copy(color)
-            v.material.opacity = opacity
-          }
-        })
-      }
+      })
     })
   }, [activeShelfId, scene])
 
@@ -69,6 +61,16 @@ export default function DropController({ draggedProduct, onDisplayDrop, activeSh
       raycaster.setFromCamera({ x, y }, camera)
 
       const intersects = raycaster.intersectObjects(scene.children, true)
+      if (intersects.length === 0) return null
+
+      // Visual indicator companions (isDropzoneVisual) sit directly in front
+      // of their collider and are transparent — skip them when looking for the
+      // first meaningful hit. Only a solid display surface (no dropzone flags)
+      // should count as an occluder.
+      const firstReal = intersects.find(h => !h.object.userData?.isDropzoneVisual)
+      if (!firstReal || !firstReal.object.userData?.isDropzone) return null
+
+      // Filter hits to just dropzones for the "Best Fit" logic below
       const hits = intersects.filter(h => h.object.userData?.isDropzone)
       if (hits.length === 0) return null
       if (hits.length === 1) return hits[0].object
@@ -136,7 +138,9 @@ export default function DropController({ draggedProduct, onDisplayDrop, activeSh
       if (mesh) {
         onSelectShelfRef.current?.(mesh.uuid)
       } else {
+        // Clicked on background — clear both shelves and parts
         onSelectShelfRef.current?.(null)
+        onSelectPartRef.current?.(null)
       }
     }
 

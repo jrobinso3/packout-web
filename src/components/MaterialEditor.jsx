@@ -130,7 +130,7 @@ function TextureStrip({ material, mapMix, originalAlbedoTex }) {
 
 // ─── MaterialCard ─────────────────────────────────────────────────────────────
 
-function MaterialCard({ entry }) {
+export function MaterialCard({ entry }) {
   const { name, material } = entry
 
   const [color, setColor]     = useState(() => threeToHex(material.color ?? new THREE.Color(1, 1, 1)))

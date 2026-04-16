@@ -26,6 +26,7 @@ function App() {
   const [unitPrices, setUnitPrices] = useState({}) // product.id -> Number
   const [unitCosts, setUnitCosts] = useState({})   // product.id -> Number
   
+  const [activePartId, setActivePartId] = useState(null)
   const [displayMaterials, setDisplayMaterials] = useState([])
   const [displayRotation, setDisplayRotation] = useState(0)
   const exportFnRef = useRef(null)
@@ -41,15 +42,25 @@ function App() {
   const handleExportReady = useCallback((fn) => { exportFnRef.current = fn }, [])
   const handleExport = useCallback(() => { exportFnRef.current?.() }, [])
 
-  const handleSetDisplayUrl = (url) => {
+  const handleDisplaySelect = useCallback((url) => {
     setDisplayUrl(url)
+    // Reset context to prevent "Ghost Selections" on the new model
+    setActivePartId(null)
+    setActiveShelfId(null)
+    setDisplayRotation(0)
+    setIsSelectorOpen(false)
     setPlacements({})
     setDisplayMaterials([])
-    setActiveShelfId(null)
-  }
+  }, [])
 
   const handleSelectShelf = useCallback((id) => {
     setActiveShelfId(id)
+    if (id) setActivePartId(null) // Context switch
+  }, [])
+
+  const handleSelectPart = useCallback((id) => {
+    setActivePartId(id)
+    if (id) setActiveShelfId(null) // Context switch
   }, [])
 
   const handleDisplayDrop = (mesh, product) => {
@@ -119,10 +130,13 @@ function App() {
         onMaterialsReady={handleMaterialsReady}
         onExportReady={handleExportReady}
         rotation={displayRotation}
+        activePartId={activePartId}
+        onSelectPart={handleSelectPart}
+        displayMaterials={displayMaterials}
       />
       
       <Sidebar
-        setDisplayUrl={handleSetDisplayUrl}
+        setDisplayUrl={handleDisplaySelect}
         setDraggedProduct={setDraggedProduct}
         displayMaterials={displayMaterials}
         onExport={handleExport}
@@ -175,7 +189,7 @@ function App() {
       {isSelectorOpen && (
         <DisplaySelectorModal 
           currentUrl={displayUrl}
-          setDisplayUrl={handleSetDisplayUrl}
+          setDisplayUrl={handleDisplaySelect}
           onClose={() => setIsSelectorOpen(false)}
           displayLibrary={displayLibrary}
         />

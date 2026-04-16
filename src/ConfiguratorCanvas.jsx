@@ -6,6 +6,24 @@ import DisplayModel from './components/DisplayModel'
 import DropController from './components/DropController'
 import PlacementsRenderer from './components/PlacementsRenderer'
 import ShelfFloatingMenu from './components/ShelfFloatingMenu'
+import MaterialFloatingMenu from './components/MaterialFloatingMenu'
+
+// Utility to clean suffixes like .001
+function normalizeName(name) {
+  if (!name) return 'unnamed'
+  return name.replace(/\.\d+$/g, '').trim()
+}
+
+// Hierarchy search for meaningful part name
+function getInteractionGroupName(node) {
+  if (!node) return 'unnamed'
+  const parentName = node.parent?.name || ''
+  const lpn = parentName.toLowerCase()
+  const isParentGeneric = !parentName || lpn === 'scene' || lpn === 'rootnode' || lpn.includes('collection')
+  
+  const nameToUse = isParentGeneric ? node.name : parentName
+  return normalizeName(nameToUse)
+}
 
 // ─── CameraAutoFit Helper ──────────────────────────────────────────────────
 // Calculates the bounding box of the loaded model and moves the camera
@@ -117,10 +135,16 @@ export default function ConfiguratorCanvas({
   onUpdateShelf,
   onMaterialsReady,
   onExportReady,
-  rotation = 0
+  rotation = 0,
+  activePartId,
+  onSelectPart,
+  displayMaterials = []
 }) {
   const helperGroupRef = useRef()
   const [loadedModel, setLoadedModel] = useState(null)
+
+  // Find the selected display group from registry
+  const activeMaterialGroup = displayMaterials.find(g => g.groupName === activePartId)
 
   return (
     <div className="absolute inset-0 z-0">
@@ -154,15 +178,24 @@ export default function ConfiguratorCanvas({
 
         <Suspense fallback={null}>
           <Environment files="/packout-web/studios/studio_small_09_4k.exr" background blur={0.06} environmentIntensity={0.25} />
-          <DropController draggedProduct={draggedProduct} onDisplayDrop={onDisplayDrop} activeShelfId={activeShelfId} onSelectShelf={onSelectShelf} />
+          <DropController 
+            draggedProduct={draggedProduct} 
+            onDisplayDrop={onDisplayDrop} 
+            activeShelfId={activeShelfId} 
+            onSelectShelf={onSelectShelf} 
+            onSelectPart={onSelectPart}
+          />
           
           <Suspense fallback={null}>
             {displayUrl && (
-              <DisplayModel 
-                url={displayUrl} 
-                onMaterialsReady={onMaterialsReady} 
+              <DisplayModel
+                key={displayUrl}
+                url={displayUrl}
+                onMaterialsReady={onMaterialsReady}
                 onLoaded={setLoadedModel}
                 rotation={rotation}
+                onSelectPart={onSelectPart}
+                activePartId={activePartId}
               />
             )}
           </Suspense>
@@ -217,6 +250,37 @@ export default function ConfiguratorCanvas({
               position={[0, -1, 0]}
             />
           </group>
+
+          {/* ─── SPATIAL UI: MATERIAL EDIT MENU ─── */}
+          {activePartId && activeMaterialGroup && loadedModel && (() => {
+            const center = new THREE.Vector3()
+            let targetMesh = null
+            
+            // Find the first mesh in the group to anchor the menu
+            loadedModel.traverse(node => {
+              if (targetMesh) return
+              if (node.isMesh) {
+                const meshName = getInteractionGroupName(node)
+                if (meshName === activePartId) targetMesh = node
+              }
+            })
+
+            if (targetMesh) {
+              if (!targetMesh.geometry.boundingBox) targetMesh.geometry.computeBoundingBox()
+              targetMesh.geometry.boundingBox.getCenter(center)
+              targetMesh.updateMatrixWorld()
+              targetMesh.localToWorld(center)
+            }
+
+            return (
+              <MaterialFloatingMenu 
+                key={`mat-menu-${activePartId}-${rotation}`}
+                group={activeMaterialGroup}
+                onClose={() => onSelectPart(null)}
+                anchorPosition={center}
+              />
+            )
+          })()}
         </Suspense>
 
         <OrbitControls makeDefault target={[0, -0.3, 0]} maxPolarAngle={Math.PI / 2 + 0.1} minDistance={1} maxDistance={30} />

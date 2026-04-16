@@ -1,5 +1,5 @@
 import { useGLTF } from '@react-three/drei'
-import { useMemo } from 'react'
+import { useState, useEffect, useMemo, useLayoutEffect } from 'react'
 import * as THREE from 'three'
 
 // Capitalize and pretty-print mesh names: "shelf1" → "Shelf 1", "floorstand" → "Floorstand"
@@ -12,14 +12,59 @@ function prettifyName(name) {
     .trim()
 }
 
-export default function DisplayModel({ url, onMaterialsReady, onLoaded, rotation = 0 }) {
-  const { scene } = useGLTF(url)
+// Utility to clean suffixes like .001
+function normalizeName(name) {
+  if (!name) return 'unnamed'
+  return name.replace(/\.\d+$/g, '').trim()
+}
 
-  // We mutate the pristine scene directly instead of cloning it.
-  // Cloning scenes in ThreeJS often strips complex PBR textures or nodes!
-  useMemo(() => {
+// Hierarchy search for meaningful part name
+function getInteractionGroupName(node) {
+  if (!node) return 'unnamed'
+  const parentName = node.parent?.name || ''
+  const lpn = parentName.toLowerCase()
+  const isParentGeneric = !parentName || lpn === 'scene' || lpn === 'rootnode' || lpn.includes('collection')
+  
+  const nameToUse = isParentGeneric ? node.name : parentName
+  return normalizeName(nameToUse)
+}
+
+export default function DisplayModel({ url, onMaterialsReady, onLoaded, rotation = 0, onSelectPart, activePartId }) {
+  const { scene } = useGLTF(url)
+  const [hoveredGroupId, setHoveredGroupId] = useState(null)
+
+  // Every time we load this model instance, we clone the scene graph.
+  // This prevents destructive mutations from leaking into the useGLTF cache.
+  const instance = useMemo(() => scene.clone(), [scene])
+
+  // Sync emissive highlight based on hover state
+  useEffect(() => {
+    instance.traverse(node => {
+      if (node.isMesh && node.material) {
+        const n = node.name.toLowerCase()
+        const isInteractive = !n.includes('_col') && !n.includes('col') && !n.includes('_ind') && !n.includes('dropzone')
+        if (!isInteractive) return
+
+        const meshName = getInteractionGroupName(node)
+        const isHovered = meshName === hoveredGroupId
+        const isSelected = meshName === activePartId
+        
+        const materials = Array.isArray(node.material) ? node.material : [node.material]
+        materials.forEach(mat => {
+          if (mat.emissive) {
+            // High-contrast Blue pulse for hover, deep blue glow for selection
+            if (isHovered) mat.emissive.set(0x3399ff)
+            else if (isSelected) mat.emissive.set(0x1a4d80)
+            else mat.emissive.set(0x000000)
+          }
+        })
+      }
+    })
+  }, [hoveredGroupId, activePartId, instance])
+
+  // Setup the scene graph (materials, registry, shadows)
+  useLayoutEffect(() => {
     // groupsMap: meshName → Map<uuid, entry>
-    // This lets the UI organise material cards by which object they belong to.
     const groupsMap = new Map()
 
     const addToGroup = (meshName, entry) => {
@@ -28,28 +73,20 @@ export default function DisplayModel({ url, onMaterialsReady, onLoaded, rotation
       if (!g.has(entry.uuid)) g.set(entry.uuid, entry)
     }
 
-    scene.traverse((child) => {
+    instance.traverse((child) => {
       if (child.isMesh) {
         const n = child.name.toLowerCase()
-        // Only modify the dropzones. Leave the rest of the display completely untouched!
         const isCollider = n.includes('_col') || n === 'col'
         const isVisual   = n.includes('_ind') || n.includes('dropzone')
 
         if (isCollider) {
-          // ── Invisible collision proxy ──────────────────────────────────
-          // visible=false hides it from the renderer but Three.js raycaster
-          // still tests it, so it acts as a perfect invisible hit volume.
-          child.visible = false
+          child.visible = true
+          child.material = new THREE.MeshBasicMaterial({ visible: false })
           child.userData.isDropzone = true
-          // Store the parent group so DropController can find the visual
-          // siblings when it needs to toggle the hover highlight.
           child.userData.visualGroup = child.parent
         } else if (isVisual) {
-          // ── Visual guide companion ─────────────────────────────────────
-          // Maintain original green albedo, but enable emissive support
           if (child.material) {
             const oldMat = child.material
-            
             if (!oldMat.emissive) {
               child.material = new THREE.MeshStandardMaterial({
                 color: oldMat.color.clone(),
@@ -57,6 +94,7 @@ export default function DisplayModel({ url, onMaterialsReady, onLoaded, rotation
                 transparent: true,
                 opacity: 0.2,
                 side: THREE.DoubleSide,
+                depthWrite: false, 
                 metalness: 0,
                 roughness: 1
               })
@@ -66,27 +104,21 @@ export default function DisplayModel({ url, onMaterialsReady, onLoaded, rotation
               child.material.transparent = true
               child.material.opacity = 0.2
               child.material.side = THREE.DoubleSide
+              child.material.depthWrite = false
             }
           }
           child.userData.isDropzoneVisual = true
         } else {
-          // Assure the original materials cast and receive shadows properly
           child.castShadow = true
           child.receiveShadow = true
 
           if (child.material) {
-            // Clone the material to avoid shared cache mutations across HMR reloads
             const processMat = (mat) => {
               const newMat = mat.clone()
               newMat.side = THREE.DoubleSide
               return newMat
             }
-
-            // Group key = Blender object name, which is the parent Group node.
-            // Multi-material objects export as:
-            //   Group "floorstand" → Mesh "floorstand", Mesh "floorstand_1", ...
-            // Using parent.name collapses all primitives under one heading.
-            const meshName = child.parent?.name || child.name || 'unnamed'
+            const meshName = getInteractionGroupName(child)
 
             if (Array.isArray(child.material)) {
               child.material = child.material.map(processMat)
@@ -113,7 +145,6 @@ export default function DisplayModel({ url, onMaterialsReady, onLoaded, rotation
       }
     })
 
-    // Convert to array of { groupName, label, materials[] }
     if (onMaterialsReady) {
       const groups = Array.from(groupsMap.entries()).map(([meshName, matsMap]) => ({
         groupName: meshName,
@@ -124,9 +155,40 @@ export default function DisplayModel({ url, onMaterialsReady, onLoaded, rotation
     }
 
     if (onLoaded) {
-      onLoaded(scene)
+      onLoaded(instance)
     }
-  }, [scene, onMaterialsReady, onLoaded])
+  }, [instance, onMaterialsReady, onLoaded])
 
-  return <primitive object={scene} position={[0, -1, 0]} rotation-y={(rotation * Math.PI) / 180} />
+  const handlePointerOver = (e) => {
+    e.stopPropagation()
+    const mesh = e.object
+    const n = mesh.name.toLowerCase()
+    const isInteractive = !n.includes('_col') && !n.includes('col') && !n.includes('_ind') && !n.includes('dropzone')
+    if (isInteractive) {
+      setHoveredGroupId(getInteractionGroupName(mesh))
+    }
+  }
+
+  const handlePointerOut = () => setHoveredGroupId(null)
+
+  const handleClick = (e) => {
+    e.stopPropagation()
+    const mesh = e.object
+    const n = mesh.name.toLowerCase()
+    const isInteractive = !n.includes('_col') && !n.includes('col') && !n.includes('_ind') && !n.includes('dropzone')
+    if (isInteractive && onSelectPart) {
+      onSelectPart(getInteractionGroupName(mesh))
+    }
+  }
+
+  return (
+    <primitive 
+      object={instance} 
+      position={[0, -1, 0]} 
+      rotation-y={(rotation * Math.PI) / 180} 
+      onPointerOver={handlePointerOver}
+      onPointerOut={handlePointerOut}
+      onClick={handleClick}
+    />
+  )
 }
