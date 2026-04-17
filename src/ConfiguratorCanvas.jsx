@@ -139,11 +139,18 @@ export default function ConfiguratorCanvas({
   rotation = 0,
   activePartId,
   onSelectPart,
-  displayMaterials = []
+  onOpenEditor,
+  products,
+  displayMaterials = [],
+  onLoaded
 }) {
   const helperGroupRef = useRef()
   const physicalGroupRef = useRef()
   const [loadedModel, setLoadedModel] = useState(null)
+
+  useEffect(() => {
+    if (onLoaded) onLoaded(loadedModel)
+  }, [loadedModel, onLoaded])
 
   // Handle AR Export Readiness
   useEffect(() => {
@@ -194,6 +201,8 @@ export default function ConfiguratorCanvas({
             activeShelfId={activeShelfId} 
             onSelectShelf={onSelectShelf} 
             onSelectPart={onSelectPart}
+            onOpenEditor={onOpenEditor}
+            products={products}
           />
           
           <group ref={physicalGroupRef}>

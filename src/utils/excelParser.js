@@ -1,7 +1,6 @@
 import * as XLSX from 'xlsx'
 
-const INCH_TO_M = 0.0254
-const MM_TO_M = 0.001
+const MM_TO_INCH = 1 / 25.4
 
 /**
  * Utility to parse Product Excel files
@@ -25,20 +24,26 @@ export async function parseProductExcel(file) {
         
         // Map rows to our product staging format
         const products = rows.map((row, index) => {
-          // Normalize headers: we look for variations of the names
-          const name      = row.Name || row.Product || row.Title || `Product-${index + 1}`
-          const wIn     = parseFloat(row.Width_In || row.Width || row.W || 0)
-          const hIn     = parseFloat(row.Height_In || row.Height || row.H || 0)
-          const dIn     = parseFloat(row.Depth_In || row.Depth || row.D || 0)
-          const uStr    = (row.Units || 'in').toLowerCase()
-          const color     = row.Color || row.Hex || '#ffffff'
-          const category  = row.Category || row.Tag || 'Imported'
+          // Normalize headers: expand to support common industry variants
+          const name     = row.Name      || row.Product    || row.Title || row['Product Name'] || row['Item Name'] || row.SKU || `Product-${index + 1}`
+          const wIn      = parseFloat(row.Width_In  || row.Width  || row.W || row['Width (in)'] || 0)
+          const hIn      = parseFloat(row.Height_In || row.Height || row.H || row['Height (in)'] || 0)
+          const dIn      = parseFloat(row.Depth_In  || row.Depth  || row.D || row['Depth (in)'] || 0)
+          const uStr     = String(row.Units || row.UOM || 'in').toLowerCase()
+          const color    = row.Color || row.Hex || row.Hexcode || '#ffffff'
+          const category = row.Category || row.Tag || row.Type || row.Folder || 'Imported'
           
-          const multiplier = uStr === 'mm' ? MM_TO_M : INCH_TO_M
+          // Image Hint: allow the spreadsheet to explicitly link to a filename
+          const imageHint = row.Image || row.Texture || row.Artwork || row['Image Name'] || null
+          
+          // The application stores dimensions in INCHES. 
+          // If the spreadsheet provides MM, we convert to inches. 
+          // If it provides inches, we use it as-is.
+          const multiplier = uStr === 'mm' ? MM_TO_INCH : 1
           
           return {
             id: `imported-${Date.now()}-${index}`,
-            name: String(name),
+            name: String(name).trim(),
             geometry: 'box',
             dimensions: [
               wIn * multiplier,
@@ -47,8 +52,8 @@ export async function parseProductExcel(file) {
             ],
             color: String(color).startsWith('#') ? color : `#${color}`,
             category: String(category),
+            imageHint: imageHint ? String(imageHint).trim() : null,
             isCustom: true,
-            // These will be filled by the Image Handshake UI
             textureUrl: null,
             isReady: false 
           }
@@ -66,29 +71,75 @@ export async function parseProductExcel(file) {
 }
 
 /**
- * Helper to match images to pending product stubs
+ * Helper to match images to pending product stubs.
+ * Uses a tiered priority strategy to ensure the best matches are found first:
+ * 1. Explicit Image Hint Match
+ * 2. Exact Title Match
+ * 3. Fuzzy Substring Matching (restricted to unclaimed images only)
  */
 export function matchImagesToProducts(pendingProducts, files) {
-  const updated = [...pendingProducts]
-  const matchedFiles = []
+  // Create deep copy to ensure React state updates correctly
+  const updated = pendingProducts.map(p => ({ ...p }))
+  const matchedFiles = new Set()
 
+  const normalize = (str) => 
+    String(str)
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]/g, '')
+
+  // Pass 1: Handle Explicit Hints and Exact Matches
   files.forEach(file => {
-    // Remove extension to get the clean name
-    const cleanFileName = file.name.replace(/\.[^.]+$/, '').toLowerCase()
-    
+    const rawFileName = file.name.replace(/\.[^.]+$/, '')
+    const cleanFileName = normalize(rawFileName)
+    if (!cleanFileName) return
+
     updated.forEach(prod => {
-      if (prod.name.toLowerCase() === cleanFileName) {
-        // We don't save the URL yet, we'll convert to Base64 in the final step
-        // for permanent IDB storage. For the UI preview, we use the Blob URL.
-        prod.textureUrl = URL.createObjectURL(file)
-        prod.rawFile = file // Keep for final base64 conversion
-        prod.isReady = true
-        matchedFiles.push(file.name)
+      // Check for explicit filename hint
+      const explicitMatch = prod.imageHint && (
+        prod.imageHint.toLowerCase() === file.name.toLowerCase() || 
+        normalize(prod.imageHint) === cleanFileName
+      )
+
+      const exactTitleMatch = normalize(prod.name) === cleanFileName
+
+      if (explicitMatch || exactTitleMatch) {
+         if (prod.textureUrl) URL.revokeObjectURL(prod.textureUrl)
+         prod.textureUrl = URL.createObjectURL(file)
+         prod.rawFile = file 
+         prod.isReady = true
+         matchedFiles.add(file.name)
       }
     })
   })
 
-  return { updated, matchedFiles }
+  // Pass 2: Fuzzy/Substring matches for remaining unready items
+  files.forEach(file => {
+    // IMPORTANT: If an image was already matched exactly in Pass 1, 
+    // do not use it for fuzzy/substring guessing. This "claims" the image
+    // for its proper owner and prevents fuzzy false-positives.
+    if (matchedFiles.has(file.name)) return 
+
+    const cleanFileName = normalize(file.name.replace(/\.[^.]+$/, ''))
+    if (cleanFileName.length < 3) return 
+
+    updated.forEach(prod => {
+      // Only fuzzy match products that still lack an image
+      if (prod.isReady) return
+      
+      const prodName = normalize(prod.name)
+      if (prodName.length < 3) return
+
+      if (prodName.includes(cleanFileName) || cleanFileName.includes(prodName)) {
+        prod.textureUrl = URL.createObjectURL(file)
+        prod.rawFile = file 
+        prod.isReady = true
+        matchedFiles.add(file.name)
+      }
+    })
+  })
+
+  return { updated, matchedFiles: Array.from(matchedFiles) }
 }
 
 /**
@@ -101,4 +152,22 @@ export async function fileToBase64(file) {
     reader.onerror = error => reject(error)
     reader.readAsDataURL(file)
   })
+}
+
+/**
+ * Generate and download a starter Excel template
+ */
+export function downloadProductTemplate() {
+  const headers = [
+    ['Name', 'Width_In', 'Height_In', 'Depth_In', 'Units', 'Color', 'Category', 'Image'],
+    ['Sample Product A', '4.5', '10', '4.5', 'in', '#ff0000', 'Beverage', 'apple_juice.png'],
+    ['Sample Product B', '3', '6', '3', 'in', '#00ff00', 'Snacks', 'chips_bag.jpg'],
+  ]
+
+  const worksheet = XLSX.utils.aoa_to_sheet(headers)
+  const workbook = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Product Template')
+
+  // Generate binary and trigger download
+  XLSX.writeFile(workbook, 'packout_template.xlsx')
 }

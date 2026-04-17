@@ -109,6 +109,41 @@ const syncGalleryPlugin = () => {
           return
         }
 
+        if (req.method === 'POST' && req.url.endsWith('/api/save-products-batch')) {
+          let body = ''
+          req.on('data', chunk => { body += chunk })
+          req.on('end', () => {
+            try {
+              const newProducts = JSON.parse(body)
+              const productsPath = path.join(dataDir, 'products.json')
+              
+              let currentProducts = []
+              if (fs.existsSync(productsPath)) {
+                currentProducts = JSON.parse(fs.readFileSync(productsPath, 'utf-8'))
+              }
+
+              newProducts.forEach(product => {
+                const existingIdx = currentProducts.findIndex(p => p.id === product.id)
+                if (existingIdx >= 0) {
+                  currentProducts[existingIdx] = product
+                } else {
+                  currentProducts.push(product)
+                }
+              })
+
+              fs.writeFileSync(productsPath, JSON.stringify(currentProducts, null, 2))
+              
+              res.statusCode = 200
+              res.setHeader('Content-Type', 'application/json')
+              res.end(JSON.stringify({ success: true }))
+            } catch (err) {
+              res.statusCode = 500
+              res.end(JSON.stringify({ error: err.message }))
+            }
+          })
+          return
+        }
+
         if (req.method === 'POST' && req.url.endsWith('/api/upload-texture')) {
           let body = ''
           req.on('data', chunk => { body += chunk })

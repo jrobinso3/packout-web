@@ -1,10 +1,36 @@
 import { useMemo, useEffect, useRef, Suspense } from 'react'
 import { useLoader } from '@react-three/fiber'
+import { useGLTF, Clone } from '@react-three/drei'
 import * as THREE from 'three'
 
 // ─── Shared Logic ─────────────────────────────────────────────────────────────
 
 const sharedInvisibleMat = new THREE.MeshBasicMaterial({ visible: false })
+
+/**
+ * Renders a batch of 3D Model products using GLB cloning.
+ */
+function ModelProductBatch({ product, matrices, shelfId }) {
+  const { scene } = useGLTF(product.glbUrl)
+  
+  return (
+    <group>
+      {matrices.map((matrix, i) => (
+        <primitive 
+          key={i} 
+          object={scene.clone()} 
+          onUpdate={(self) => {
+            self.matrix.copy(matrix)
+            self.matrix.decompose(self.position, self.quaternion, self.scale)
+          }}
+          castShadow 
+          receiveShadow 
+          userData={{ isProduct: true, shelfId, productId: product.id }}
+        />
+      ))}
+    </group>
+  )
+}
 
 /**
  * Renders a batch of custom textured products.
@@ -46,7 +72,7 @@ function CustomProductBatch({ product, matrices, shelfId }) {
       args={[null, null, matrices.length]} 
       castShadow 
       receiveShadow
-      userData={{ isProduct: true, shelfId }}
+      userData={{ isProduct: true, shelfId, productId: product.id }}
     >
       <boxGeometry args={[w, h, d]} />
       {materials.map((mat, i) => (
@@ -87,7 +113,7 @@ function StandardProductBatch({ product, matrices, shelfId }) {
       args={[null, null, matrices.length]} 
       castShadow 
       receiveShadow
-      userData={{ isProduct: true, shelfId }}
+      userData={{ isProduct: true, shelfId, productId: product.id }}
     >
       {geometry}
       <meshStandardMaterial color={product.color} roughness={0.8} metalness={0} />
@@ -193,7 +219,9 @@ function ProductGroup({ dropzoneMesh, items = [], rotation = 0, shelfId }) {
     <group>
       {Array.from(groups.values()).map(({ product, matrices }) => (
         <Suspense key={product.id} fallback={null}>
-          {(product.isCustom || product.textureUrl) ? (
+          {product.category === '3D' ? (
+            <ModelProductBatch product={product} matrices={matrices} shelfId={shelfId} />
+          ) : (product.isCustom || product.textureUrl) ? (
             <CustomProductBatch product={product} matrices={matrices} shelfId={shelfId} />
           ) : (
             <StandardProductBatch product={product} matrices={matrices} shelfId={shelfId} />

@@ -26,6 +26,7 @@ function App() {
   const [isHydrated, setIsHydrated] = useState(false)
   const [showGallery, setShowGallery] = useState(false)
   const [editingProduct, setEditingProduct] = useState(null)
+  const [displayModel, setDisplayModel] = useState(null)
   
   const handleOpenEditor = (product) => {
     setEditingProduct(product)
@@ -375,7 +376,10 @@ function App() {
         rotation={displayRotation}
         activePartId={activePartId}
         onSelectPart={handleSelectPart}
+        onOpenEditor={handleOpenEditor}
+        products={products}
         displayMaterials={displayMaterials}
+        onLoaded={setDisplayModel}
       />
       
       <Sidebar
@@ -428,6 +432,7 @@ function App() {
         unitCosts={unitCosts}
         onUnitPriceChange={handleUnitPriceChange}
         onUnitCostChange={handleUnitCostChange}
+        scene={displayModel}
       />
 
       {/* ─── ROTATION CONTROLLER ─── */}

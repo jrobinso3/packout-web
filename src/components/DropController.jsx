@@ -9,7 +9,7 @@ const DEFAULT_OPACITY = 0.2
 const HOVER_OPACITY   = 1
 const ACTIVE_OPACITY  = 1
 
-export default function DropController({ draggedProduct, onDisplayDrop, activeShelfId, onSelectShelf, onSelectPart }) {
+export default function DropController({ draggedProduct, onDisplayDrop, activeShelfId, onSelectShelf, onSelectPart, onOpenEditor, products }) {
   const { gl, camera, scene } = useThree()
 
   // Refs let stable event handlers always read the latest prop values
@@ -19,12 +19,16 @@ export default function DropController({ draggedProduct, onDisplayDrop, activeSh
   const activeShelfIdRef  = useRef(activeShelfId)
   const hoveredMeshRef    = useRef(null)
   const onSelectPartRef   = useRef(onSelectPart)
+  const onOpenEditorRef   = useRef(onOpenEditor)
+  const productsRef       = useRef(products)
 
   useEffect(() => { draggedProductRef.current = draggedProduct }, [draggedProduct])
   useEffect(() => { onDisplayDropRef.current  = onDisplayDrop  }, [onDisplayDrop])
   useEffect(() => { onSelectShelfRef.current   = onSelectShelf   }, [onSelectShelf])
   useEffect(() => { activeShelfIdRef.current  = activeShelfId  }, [activeShelfId])
   useEffect(() => { onSelectPartRef.current   = onSelectPart   }, [onSelectPart])
+  useEffect(() => { onOpenEditorRef.current   = onOpenEditor   }, [onOpenEditor])
+  useEffect(() => { productsRef.current       = products       }, [products])
 
   // Sync visual states when activeShelfId changes externally
   useEffect(() => {

@@ -26,7 +26,7 @@ export default function DisplaySelectorModal({ currentUrl, setDisplayUrl, onClos
       />
 
       {/* Modal Container */}
-      <div className="relative w-full max-w-5xl bg-glass-bg border border-glass-border rounded-[2.5rem] shadow-3xl overflow-hidden flex flex-col max-h-full animate-in zoom-in-95 duration-300">
+      <div className="relative w-full max-w-5xl h-[85vh] bg-glass-bg border border-glass-border rounded-[2.5rem] shadow-3xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-300">
         
         {/* Header */}
         <div className="flex items-center justify-between p-8 border-b border-black/5 bg-black/5">
@@ -44,12 +44,12 @@ export default function DisplaySelectorModal({ currentUrl, setDisplayUrl, onClos
           </button>
         </div>
 
-        {/* Scrollable Body */}
-        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+        {/* Body */}
+        <div className="flex-1 min-h-0 overflow-hidden flex flex-col p-8">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 flex-1 min-h-0">
             
-            {/* Gallery Grid */}
-            <div className="lg:col-span-8 space-y-12">
+            {/* Gallery Grid (Scrollable) */}
+            <div className="lg:col-span-8 overflow-y-auto pr-6 custom-scrollbar space-y-12">
               {isLoading ? (
                 <div className="flex flex-col items-center justify-center py-20 gap-4 text-accent/40 bg-black/5 rounded-3xl border border-black/5">
                   <Loader2 size={40} className="animate-spin" />
@@ -105,7 +105,7 @@ export default function DisplaySelectorModal({ currentUrl, setDisplayUrl, onClos
                             {/* Info */}
                             <div className="p-5 flex flex-col gap-1 text-left">
                               <span className="text-[11px] font-bold text-text-main truncate">{d.name?.replace(/\.glb$/i, '')}</span>
-                              <span className="text-[10px] font-black uppercase tracking-widest text-text-dim/60">Standard Fixture</span>
+                              <span className="text-[10px] font-black uppercase tracking-widest text-text-dim/60">{d.category || 'Fixture'}</span>
                             </div>
                           </button>
                         )
@@ -117,13 +117,13 @@ export default function DisplaySelectorModal({ currentUrl, setDisplayUrl, onClos
             </div>
 
             {/* Upload Sidebar */}
-            <div className="lg:col-span-4 space-y-6">
+            <div className="lg:col-span-4 space-y-6 h-fit">
               <div className="flex items-center gap-3 mb-2">
                 <Upload size={18} className="text-secondary" />
                 <h3 className="text-xs font-black uppercase tracking-[0.2em] text-text-dim">Custom Model</h3>
               </div>
 
-              <label className="flex flex-col items-center justify-center aspect-square md:aspect-auto md:h-[calc(100%-40px)] rounded-3xl border-2 border-dashed border-white/10 bg-white/5 hover:border-accent hover:bg-accent/5 transition-all cursor-pointer group p-8 text-center gap-6">
+              <label className="flex flex-col items-center justify-center aspect-square md:aspect-auto rounded-3xl border-2 border-dashed border-white/10 bg-white/5 hover:border-accent hover:bg-accent/5 transition-all cursor-pointer group p-8 text-center gap-6">
                 <div className="w-20 h-20 rounded-2.5xl bg-white/5 flex items-center justify-center text-white/20 group-hover:text-accent group-hover:bg-accent/10 transition-all border border-white/5 group-hover:border-accent/20">
                   <Upload size={40} />
                 </div>

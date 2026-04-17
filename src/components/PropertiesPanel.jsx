@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import * as THREE from 'three'
 import { PieChart, TrendingUp, Package, DollarSign, ChevronDown, ChevronUp } from 'lucide-react'
 
-export default function PropertiesPanel({ placements, unitPrices, unitCosts, onUnitPriceChange, onUnitCostChange }) {
+export default function PropertiesPanel({ placements, unitPrices, unitCosts, onUnitPriceChange, onUnitCostChange, scene }) {
   const [minimized, setMinimized] = useState(false)
   
   const reportData = useMemo(() => {
@@ -11,8 +11,17 @@ export default function PropertiesPanel({ placements, unitPrices, unitCosts, onU
     
     const productsMap = new Map() // productId -> { product, quantity }
     
-    Object.values(placements).forEach((placement) => {
-      const { mesh, items } = placement || {}
+    Object.entries(placements).forEach(([shelfId, placement]) => {
+      let { mesh, items } = placement || {}
+      
+      // RE-BINDING: If we have a scene but the mesh reference is missing (common after IDB hydration)
+      // we search the scene for a mesh matching the shelfId.
+      if (!mesh && scene && shelfId) {
+        scene.traverse(node => {
+          if (node.isMesh && node.name === shelfId) mesh = node
+        })
+      }
+
       if (!mesh || !items || !items.length || !mesh.geometry) return
       
       try {
@@ -72,7 +81,7 @@ export default function PropertiesPanel({ placements, unitPrices, unitCosts, onU
     const totalProfit = rows.reduce((sum, r) => sum + r.profit, 0)
 
     return { rows, totalCount, totalValue, totalProfit }
-  }, [placements, unitPrices, unitCosts])
+  }, [placements, unitPrices, unitCosts, scene])
 
   return (
     <div className={`fixed bottom-4 right-4 ${minimized ? 'w-[480px] p-3 px-5' : 'w-[580px] p-5'} bg-glass-bg border border-glass-border backdrop-blur-xl rounded-3xl z-30 shadow-3xl animate-in fade-in slide-in-from-right-4 duration-700 transition-all duration-300`}>

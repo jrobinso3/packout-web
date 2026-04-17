@@ -69,8 +69,22 @@ export function useProductLibrary() {
   }, [fetchLibrary])
 
   const addProductsBatch = useCallback(async (newProducts) => {
-    await idb.saveProductsBatch(newProducts)
-    await fetchLibrary()
+    try {
+      // 1. Persist Globally
+      await fetch(`${import.meta.env.BASE_URL}api/save-products-batch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newProducts)
+      })
+      // 2. Local Backup
+      await idb.saveProductsBatch(newProducts)
+      // 3. Refresh
+      await fetchLibrary()
+    } catch (err) {
+      console.error('Batch Persistence Error:', err)
+      await idb.saveProductsBatch(newProducts)
+      await fetchLibrary()
+    }
   }, [fetchLibrary])
 
   const updateProduct = useCallback(async (id, updates) => {

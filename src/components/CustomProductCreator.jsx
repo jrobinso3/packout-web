@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { ImagePlus, Plus, X } from 'lucide-react'
+import { ImagePlus, Plus, X, Box } from 'lucide-react'
 
 const INCH_TO_M = 0.0254
 
@@ -22,8 +22,9 @@ function DimInput({ label, value, onChange }) {
 }
 
 export default function CustomProductCreator({ onAdd, existingProduct, onUpdate, onCancel }) {
-  const [previewUrl, setPreviewUrl] = useState(existingProduct?.textureUrl || null)
+  const [previewUrl, setPreviewUrl] = useState(existingProduct?.textureUrl || existingProduct?.glbUrl || null)
   const [file, setFile] = useState(null)
+  const [productType, setProductType] = useState(existingProduct?.type || '2D')
   const [name, setName]   = useState(existingProduct?.name || '')
   const [width, setWidth]   = useState(existingProduct?.dimensions?.[0] || '')
   const [height, setHeight] = useState(existingProduct?.dimensions?.[1] || '')
@@ -33,7 +34,11 @@ export default function CustomProductCreator({ onAdd, existingProduct, onUpdate,
   const handleFile = (e) => {
     const picked = e.target.files?.[0]
     if (!picked) return
-    if (previewUrl) URL.revokeObjectURL(previewUrl)
+    if (previewUrl && !existingProduct) URL.revokeObjectURL(previewUrl)
+    
+    const isGlb = picked.name.toLowerCase().endsWith('.glb')
+    setProductType(isGlb ? '3D' : '2D')
+    
     const url = URL.createObjectURL(picked)
     setPreviewUrl(url)
     setFile(picked)
@@ -41,12 +46,12 @@ export default function CustomProductCreator({ onAdd, existingProduct, onUpdate,
   }
 
   const handleAdd = async () => {
-    // Validation: Dimensions are always required. File is only required for new products.
+    // Validation: Dimensions are always required for bounding boxes.
     if (!width || !height) return
     if (!existingProduct && !file) return
 
     try {
-      let finalUrl = existingProduct?.textureUrl || previewUrl
+      let finalUrl = productType === '3D' ? (existingProduct?.glbUrl || previewUrl) : (existingProduct?.textureUrl || previewUrl)
 
       // 1. If a new file was picked, perform a physical upload
       if (file) {
@@ -59,7 +64,8 @@ export default function CustomProductCreator({ onAdd, existingProduct, onUpdate,
         })
 
         // Physical Upload via Persistence API
-        const res = await fetch(`${import.meta.env.BASE_URL}api/upload-texture`, {
+        const endpoint = productType === '3D' ? 'upload-model' : 'upload-texture'
+        const res = await fetch(`${import.meta.env.BASE_URL}api/${endpoint}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -68,20 +74,22 @@ export default function CustomProductCreator({ onAdd, existingProduct, onUpdate,
           })
         })
 
-        if (!res.ok) throw new Error('Physical upload failed')
+        if (!res.ok) throw new Error(`Physical upload failed: ${endpoint}`)
         const data = await res.json()
         finalUrl = data.url
       }
 
       const productPayload = {
-        name:       name || 'Custom',
-        geometry:   'box',
+        name:       name || (productType === '3D' ? 'New 3D Asset' : 'Custom 2D'),
+        category:   productType,
+        geometry:   productType === '3D' ? 'mesh' : 'box',
         dimensions: [
           parseFloat(width),
           parseFloat(height),
           parseFloat(depth || '0.5'),
         ],
-        textureUrl: finalUrl, 
+        textureUrl: productType === '2D' ? finalUrl : null,
+        glbUrl:     productType === '3D' ? finalUrl : null,
         isCustom:   true,
       }
 
@@ -94,12 +102,13 @@ export default function CustomProductCreator({ onAdd, existingProduct, onUpdate,
         })
       }
 
-      // Reset form (only if not editing, or always clear local preview pointers)
-      if (file && previewUrl && !existingProduct?.textureUrl) URL.revokeObjectURL(previewUrl)
+      // Reset form
+      if (file && previewUrl && !existingProduct) URL.revokeObjectURL(previewUrl)
       
       if (!existingProduct) {
         setPreviewUrl(null)
         setFile(null)
+        setProductType('2D')
         setName('')
         setWidth('')
         setHeight('')
@@ -129,22 +138,32 @@ export default function CustomProductCreator({ onAdd, existingProduct, onUpdate,
   return (
     <div className="cp-creator">
 
-      {/* Image upload / preview */}
+      {/* Image/Model upload / preview */}
       {previewUrl ? (
         <div className="cp-preview-wrap shadow-inner border-black/5">
-          <img src={previewUrl} className="cp-preview-img" alt="preview" />
+          {productType === '3D' ? (
+            <div className="w-full h-full flex flex-col items-center justify-center bg-black/5 text-accent">
+              <Box size={40} className="mb-2" />
+              <span className="text-[8px] font-black uppercase tracking-widest opacity-60">3D GLB Asset</span>
+            </div>
+          ) : (
+            <img src={previewUrl} className="cp-preview-img" alt="preview" />
+          )}
           <button className="cp-clear-btn shadow-lg" onClick={clear} title="Remove">
             <X size={12} />
           </button>
         </div>
       ) : (
         <label className="cp-drop-zone group">
-          <ImagePlus size={22} className="text-accent group-hover:scale-110 transition-transform" />
-          <span className="text-[10px] font-black uppercase tracking-widest text-text-main mt-2">Upload product PNG</span>
+          <div className="flex items-center gap-2">
+            <ImagePlus size={22} className="text-accent group-hover:scale-110 transition-transform" />
+            <Box size={22} className="text-secondary group-hover:scale-110 transition-transform" />
+          </div>
+          <span className="text-[10px] font-black uppercase tracking-widest text-text-main mt-2">Upload PNG (2D) or GLB (3D)</span>
           <input
             ref={fileRef}
             type="file"
-            accept=".png,.jpg,.jpeg"
+            accept=".png,.jpg,.jpeg,.glb"
             className="sr-only"
             onChange={handleFile}
           />
