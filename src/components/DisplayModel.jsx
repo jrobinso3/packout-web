@@ -1,6 +1,7 @@
 import { useGLTF } from '@react-three/drei'
 import { useState, useEffect, useMemo, useLayoutEffect } from 'react'
 import * as THREE from 'three'
+import { applyArtworkMix } from '../utils/textureUtils'
 
 // Capitalize and pretty-print mesh names: "shelf1" → "Shelf 1", "floorstand" → "Floorstand"
 function prettifyName(name) {
@@ -112,16 +113,33 @@ export default function DisplayModel({ url, onMaterialsReady, onLoaded, rotation
           child.castShadow = true
           child.receiveShadow = true
 
-          if (child.material) {
-            const processMat = (mat) => {
-              const newMat = mat.clone()
-              newMat.side = THREE.DoubleSide
-              return newMat
-            }
             const meshName = getInteractionGroupName(child)
 
+            const brandAndProcess = (mat) => {
+              const newMat = mat.clone()
+              newMat.side = THREE.DoubleSide
+              
+              const matName = (newMat.name || child.name || '').toLowerCase()
+              // Robust Branding Filter: include front/back/side, but EXCLUDE side2, side 2, and inside
+              const isSide2 = matName.includes('side2') || matName.includes('side 2')
+              const isBrandingFace = (matName.includes('front') || matName.includes('back') || matName.includes('side')) && !isSide2 && !matName.includes('inside')
+              
+              if (isBrandingFace) {
+                newMat.userData.artworkMix = 0
+                applyArtworkMix(newMat, 0)
+              } else {
+                newMat.userData.artworkMix = 1
+                if (newMat.map) {
+                  // RESTORE CORRUGATE DETAIL: Unlock wrapping for structural faces
+                  newMat.map.wrapS = THREE.RepeatWrapping
+                  newMat.map.wrapT = THREE.RepeatWrapping
+                }
+              }
+              return newMat
+            }
+
             if (Array.isArray(child.material)) {
-              child.material = child.material.map(processMat)
+              child.material = child.material.map(brandAndProcess)
               child.material.forEach(mat => {
                 const cleanName = (mat.name || child.name || 'Unnamed').replace(/\.\d+$/g, '')
                 addToGroup(meshName, {
@@ -131,7 +149,7 @@ export default function DisplayModel({ url, onMaterialsReady, onLoaded, rotation
                 })
               })
             } else {
-              child.material = processMat(child.material)
+              child.material = brandAndProcess(child.material)
               const mat = child.material
               const cleanName = (mat.name || child.name || 'Unnamed').replace(/\.\d+$/g, '')
               addToGroup(meshName, {
@@ -140,7 +158,6 @@ export default function DisplayModel({ url, onMaterialsReady, onLoaded, rotation
                 material: mat,
               })
             }
-          }
         }
       }
     })
