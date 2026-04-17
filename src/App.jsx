@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { Settings2 } from 'lucide-react'
 import * as THREE from 'three'
 import ConfiguratorCanvas from './ConfiguratorCanvas'
@@ -6,6 +6,7 @@ import Sidebar from './components/Sidebar'
 import PropertiesPanel from './components/PropertiesPanel'
 import DisplaySelectorModal from './components/DisplaySelectorModal'
 import ProductThumbnail from './components/ProductThumbnail'
+import { exportToAR, isIOS } from './utils/ARUtility'
 
 function App() {
   const [displayUrl, setDisplayUrl] = useState(`${import.meta.env.BASE_URL}displays/corrugate_displays/Floorstand_3S.glb`)
@@ -31,7 +32,11 @@ function App() {
   const [displayMaterials, setDisplayMaterials] = useState([])
   const [displayRotation, setDisplayRotation] = useState(0)
   const exportFnRef = useRef(null)
+  const exportARFnRef = useRef(null)
 
+  // Detect iOS/iPad support
+  const isIOSPlatform = useMemo(() => isIOS(), [])
+  
   // ─── TOUCH/POINTER DRAG STATE ──────────────────────────────────────────────
   const [dragPosition, setDragPosition] = useState(null) // { x, y }
   
@@ -59,6 +64,14 @@ function App() {
 
   const handleExportReady = useCallback((fn) => { exportFnRef.current = fn }, [])
   const handleExport = useCallback(() => { exportFnRef.current?.() }, [])
+
+  const handleExportARReady = useCallback((fn) => { exportARFnRef.current = fn }, [])
+  const handleExportAR = useCallback(async () => {
+    const group = exportARFnRef.current?.()
+    if (group) {
+      await exportToAR(group)
+    }
+  }, [])
 
   const handleDisplaySelect = useCallback((url) => {
     setDisplayUrl(url)
@@ -148,6 +161,7 @@ function App() {
         onUpdateShelf={handleUpdateShelf}
         onMaterialsReady={handleMaterialsReady}
         onExportReady={handleExportReady}
+        onExportARReady={handleExportARReady}
         rotation={displayRotation}
         activePartId={activePartId}
         onSelectPart={handleSelectPart}
@@ -160,6 +174,8 @@ function App() {
         draggedProduct={draggedProduct}
         displayMaterials={displayMaterials}
         onExport={handleExport}
+        onExportAR={handleExportAR}
+        isIOS={isIOSPlatform}
         placements={placements}
         activeShelfId={activeShelfId}
         onSelectShelf={handleSelectShelf}

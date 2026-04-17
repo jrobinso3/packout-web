@@ -135,13 +135,22 @@ export default function ConfiguratorCanvas({
   onUpdateShelf,
   onMaterialsReady,
   onExportReady,
+  onExportARReady,
   rotation = 0,
   activePartId,
   onSelectPart,
   displayMaterials = []
 }) {
   const helperGroupRef = useRef()
+  const physicalGroupRef = useRef()
   const [loadedModel, setLoadedModel] = useState(null)
+
+  // Handle AR Export Readiness
+  useEffect(() => {
+    if (onExportARReady && physicalGroupRef.current) {
+      onExportARReady(() => physicalGroupRef.current)
+    }
+  }, [onExportARReady])
 
   // Find the selected display group from registry
   const activeMaterialGroup = displayMaterials.find(g => g.groupName === activePartId)
@@ -186,23 +195,25 @@ export default function ConfiguratorCanvas({
             onSelectPart={onSelectPart}
           />
           
-          <Suspense fallback={null}>
-            {displayUrl && (
-              <DisplayModel
-                key={displayUrl}
-                url={displayUrl}
-                onMaterialsReady={onMaterialsReady}
-                onLoaded={setLoadedModel}
-                rotation={rotation}
-                onSelectPart={onSelectPart}
-                activePartId={activePartId}
-              />
-            )}
-          </Suspense>
+          <group ref={physicalGroupRef}>
+            <Suspense fallback={null}>
+              {displayUrl && (
+                <DisplayModel
+                  key={displayUrl}
+                  url={displayUrl}
+                  onMaterialsReady={onMaterialsReady}
+                  onLoaded={setLoadedModel}
+                  rotation={rotation}
+                  onSelectPart={onSelectPart}
+                  activePartId={activePartId}
+                />
+              )}
+            </Suspense>
 
-          <Suspense fallback={null}>
-            {placements && <PlacementsRenderer placements={placements} rotation={rotation} />}
-          </Suspense>
+            <Suspense fallback={null}>
+              {placements && <PlacementsRenderer placements={placements} rotation={rotation} />}
+            </Suspense>
+          </group>
 
           {/* ─── SPATIAL UI: FLOATING EDIT MENU ─── */}
           {activeShelfId && placements[activeShelfId] && (() => {
