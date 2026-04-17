@@ -30,6 +30,23 @@ function App() {
   const [displayMaterials, setDisplayMaterials] = useState([])
   const [displayRotation, setDisplayRotation] = useState(0)
   const exportFnRef = useRef(null)
+
+  // ─── TOUCH/POINTER DRAG STATE ──────────────────────────────────────────────
+  const [dragPosition, setDragPosition] = useState(null) // { x, y }
+  
+  // Global pointer move listener for virtual drag preview
+  useEffect(() => {
+    if (!draggedProduct) return
+    const handlePointerMove = (e) => setDragPosition({ x: e.clientX, y: e.clientY })
+    const handlePointerUp   = () => { setDraggedProduct(null); setDragPosition(null) }
+    
+    window.addEventListener('pointermove', handlePointerMove)
+    window.addEventListener('pointerup',   handlePointerUp)
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('pointerup',   handlePointerUp)
+    }
+  }, [draggedProduct])
   
   const handleUnitPriceChange = useCallback((productId, price) => {
     setUnitPrices(prev => ({ ...prev, [productId]: price }))
@@ -122,6 +139,7 @@ function App() {
       <ConfiguratorCanvas
         displayUrl={displayUrl}
         draggedProduct={draggedProduct}
+        dragPosition={dragPosition}
         onDisplayDrop={handleDisplayDrop}
         placements={placements}
         activeShelfId={activeShelfId}
@@ -138,6 +156,7 @@ function App() {
       <Sidebar
         setDisplayUrl={handleDisplaySelect}
         setDraggedProduct={setDraggedProduct}
+        draggedProduct={draggedProduct}
         displayMaterials={displayMaterials}
         onExport={handleExport}
         placements={placements}
@@ -148,6 +167,23 @@ function App() {
         currentDisplayUrl={displayUrl}
         displayLibrary={displayLibrary}
       />
+
+      {/* ─── VIRTUAL DRAG PREVIEW ─── */}
+      {draggedProduct && dragPosition && (
+        <div 
+          className="fixed pointer-events-none z-[100] w-16 h-16 bg-white/20 border border-accent/40 rounded-xl backdrop-blur-sm shadow-2xl flex items-center justify-center p-1"
+          style={{ 
+            left: dragPosition.x - 32, 
+            top: dragPosition.y - 32,
+            transform: 'scale(1.1)',
+            opacity: 0.8
+          }}
+        >
+          <div className="w-full h-full opacity-60">
+            <ProductThumbnail product={draggedProduct} />
+          </div>
+        </div>
+      )}
 
       <PropertiesPanel 
         placements={placements}

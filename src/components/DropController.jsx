@@ -127,9 +127,22 @@ export default function DropController({ draggedProduct, onDisplayDrop, activeSh
 
     // ── Event handlers ───────────────────────────────────────────────────────
 
-    const handleMouseMove = (e) => {
+    const handlePointerMove = (e) => {
       const { x, y } = getNDC(e)
       setHover(findBestDropzone(x, y))
+    }
+
+    const handlePointerUp = (e) => {
+      // If we were dragging a product, handle the "Drop"
+      if (draggedProductRef.current) {
+        const { x, y } = getNDC(e)
+        const mesh = findBestDropzone(x, y)
+        if (mesh) {
+          onDisplayDropRef.current(mesh, draggedProductRef.current)
+        }
+        clearHover()
+        // No need to clear draggedProduct here, App.jsx does it on pointerup
+      }
     }
 
     const handleMouseClick = (e) => {
@@ -138,44 +151,27 @@ export default function DropController({ draggedProduct, onDisplayDrop, activeSh
       if (mesh) {
         onSelectShelfRef.current?.(mesh.uuid)
       } else {
-        // Clicked on background — clear both shelves and parts
         onSelectShelfRef.current?.(null)
         onSelectPartRef.current?.(null)
       }
     }
 
-    const handleDragOver = (e) => {
-      e.preventDefault()
-      e.dataTransfer.dropEffect = 'copy'
-      const { x, y } = getNDC(e)
-      setHover(findBestDropzone(x, y))
-    }
+    const handleDragOver = (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy' }
 
-    const handleDrop = (e) => {
-      e.preventDefault()
-      clearHover()
-      if (!draggedProductRef.current) return
-      const { x, y } = getNDC(e)
-      const mesh = findBestDropzone(x, y)
-      if (mesh) {
-        onDisplayDropRef.current(mesh, draggedProductRef.current)
-      }
-    }
-
-    gl.domElement.addEventListener('mousemove',  handleMouseMove)
-    gl.domElement.addEventListener('mouseleave', clearHover)
-    gl.domElement.addEventListener('click',      handleMouseClick)
-    gl.domElement.addEventListener('dragover',   handleDragOver)
-    gl.domElement.addEventListener('dragleave',  clearHover)
-    gl.domElement.addEventListener('drop',       handleDrop)
+    gl.domElement.addEventListener('pointermove', handlePointerMove)
+    gl.domElement.addEventListener('pointerup',   handlePointerUp)
+    gl.domElement.addEventListener('mouseleave',  clearHover)
+    gl.domElement.addEventListener('click',       handleMouseClick)
+    gl.domElement.addEventListener('dragover',    handleDragOver)
+    gl.domElement.addEventListener('drop',        handlePointerUp) // Support both
 
     return () => {
-      gl.domElement.removeEventListener('mousemove',  handleMouseMove)
-      gl.domElement.removeEventListener('mouseleave', clearHover)
-      gl.domElement.removeEventListener('click',      handleMouseClick)
-      gl.domElement.removeEventListener('dragover',   handleDragOver)
-      gl.domElement.removeEventListener('dragleave',  clearHover)
-      gl.domElement.removeEventListener('drop',       handleDrop)
+      gl.domElement.removeEventListener('pointermove', handlePointerMove)
+      gl.domElement.removeEventListener('pointerup',   handlePointerUp)
+      gl.domElement.removeEventListener('mouseleave',  clearHover)
+      gl.domElement.removeEventListener('click',       handleMouseClick)
+      gl.domElement.removeEventListener('dragover',    handleDragOver)
+      gl.domElement.removeEventListener('drop',        handlePointerUp)
     }
   }, [gl, camera, scene])
 

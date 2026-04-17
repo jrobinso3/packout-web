@@ -116,10 +116,20 @@ export default function Sidebar({
   const renderProductCard = (product) => (
     <div key={product.id} className="flex flex-col items-center gap-1 relative">
       <div
-        className="bg-white/5 border border-glass-border rounded-xl p-2 cursor-grab active:cursor-grabbing hover:bg-white/10 transition-all w-full aspect-square"
-        draggable
-        onDragStart={(e) => { e.dataTransfer.effectAllowed = 'copy'; setDraggedProduct(product) }}
-        onDragEnd={() => setDraggedProduct(null)}
+        className={`bg-white/5 border border-glass-border rounded-xl p-2 cursor-grab active:cursor-grabbing hover:bg-white/10 transition-all w-full aspect-square ${draggedProduct?.id === product.id ? 'opacity-30' : ''}`}
+        style={{ touchAction: 'none' }}
+        onPointerDown={(e) => {
+          const startX = e.clientX
+          const startY = e.clientY
+          const handleMove = (emove) => {
+            if (Math.hypot(emove.clientX - startX, emove.clientY - startY) > 5) {
+              setDraggedProduct(product)
+              window.removeEventListener('pointermove', handleMove)
+            }
+          }
+          window.addEventListener('pointermove', handleMove)
+          window.addEventListener('pointerup', () => window.removeEventListener('pointermove', handleMove), { once: true })
+        }}
       >
         <ProductThumbnail product={product} />
       </div>
