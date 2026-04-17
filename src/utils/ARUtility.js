@@ -1,56 +1,71 @@
 import { USDZExporter } from 'three/examples/jsm/exporters/USDZExporter'
 
 /**
- * Utility to handle ARKit (AR Quick Look) export for iOS/iPad devices.
- * Uses Three.js USDZExporter to convert the scene to Apple's Pixar-backed format.
+ * Utility to generate a USDZ blob from a Three.js scene/group.
+ * This is the "Build" phase of the two-stage AR launch.
  */
-export async function exportToAR(scene) {
+export async function generateUSDZ(scene) {
   if (!scene) {
-    console.error('AR Export Error: No scene provided.')
-    return
+    console.error('AR Generate Error: No scene provided.')
+    return null
   }
-
-  console.log('🚀 Finalizing AR Model for iPad...')
 
   try {
     const exporter = new USDZExporter()
     
+    // Material Safety Pass: USDZExporter strictly supports MeshStandardMaterial.
+    // We traverse to ensure the export group is "Clean" for Pixar/iOS.
+    scene.traverse((node) => {
+      if (node.isMesh && node.material) {
+        // If it's a multi-material or non-standard, we log a warning.
+        // USDZExporter usually tries its best but Standard is the safest baseline.
+        if (!node.material.isMeshStandardMaterial && !node.material.isMeshPhysicalMaterial) {
+          console.warn(`AR Export: Mesh "${node.name}" uses non-standard material. Result may vary in AR viewer.`)
+        }
+      }
+    })
+
     // Parse the scene into USDZ data (Uint8Array)
-    const usdzData = await exporter.parse(scene)
+    // options.quickLookCompatible ensures maximum stability on iPadOS
+    const usdzData = await exporter.parse(scene, {
+      quickLookCompatible: true
+    })
     
-    // Create a Blob for the USDZ file
     const blob = new Blob([usdzData], { type: 'model/vnd.usdz+zip' })
-    const url = URL.createObjectURL(blob)
-    
-    // Create the native AR Quick Look trigger link
-    const link = document.createElement('a')
-    link.style.display = 'none'
-    link.href = url
-    
-    // CRITICAL: rel="ar" is required for iOS to trigger the native AR viewer
-    link.rel = 'ar'
-    
-    // Specifically naming the file for the iOS system
-    const filename = `packout_${new Date().toISOString().slice(0, 10)}.usdz`
-    link.download = filename
-    
-    document.body.appendChild(link)
-    link.click()
-    
-    // Cleanup
-    setTimeout(() => {
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
-    }, 2000)
-    
-    console.log('✅ AR Session Ready: Check your iPad AR viewer.')
+    return URL.createObjectURL(blob)
   } catch (error) {
-    console.error('❌ AR Export Failed:', error)
+    console.error('❌ USDZ Generation Failed:', error)
+    return null
   }
 }
 
 /**
- * Simple check for iOS/iPadOS platform
+ * Utility to trigger the native iOS AR viewer.
+ * This MUST be called directly from a user interaction tick (synchronously) 
+ * to bypass Safari's popup blocker.
+ */
+export function launchARQuickLook(url) {
+  if (!url) {
+    console.error('AR Launch Error: No model URL provided.')
+    return
+  }
+
+  const link = document.createElement('a')
+  link.setAttribute('rel', 'ar')
+  link.setAttribute('href', url)
+  
+  // naming correctly for iOS
+  const filename = `packout_${new Date().toISOString().slice(0, 10)}.usdz`
+  link.setAttribute('download', filename)
+  
+  // Append, click, and immediately remove to keep DOM clean
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}
+
+/**
+ * Standard iOS/iPadOS detection
  */
 export function isIOS() {
   return [
@@ -61,6 +76,5 @@ export function isIOS() {
     'iPhone',
     'iPod'
   ].includes(navigator.platform)
-  // iPad on iOS 13 detection
   || (navigator.userAgent.includes("Mac") && "ontouchend" in document)
 }

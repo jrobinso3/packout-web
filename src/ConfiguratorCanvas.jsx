@@ -147,7 +147,8 @@ export default function ConfiguratorCanvas({
 
   // Handle AR Export Readiness
   useEffect(() => {
-    if (onExportARReady && physicalGroupRef.current) {
+    if (onExportARReady) {
+      // Pass a getter that always evaluates the current ref
       onExportARReady(() => physicalGroupRef.current)
     }
   }, [onExportARReady])

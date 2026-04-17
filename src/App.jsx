@@ -6,7 +6,7 @@ import Sidebar from './components/Sidebar'
 import PropertiesPanel from './components/PropertiesPanel'
 import DisplaySelectorModal from './components/DisplaySelectorModal'
 import ProductThumbnail from './components/ProductThumbnail'
-import { exportToAR, isIOS } from './utils/ARUtility'
+import { generateUSDZ, launchARQuickLook, isIOS } from './utils/ARUtility'
 
 function App() {
   const [displayUrl, setDisplayUrl] = useState(`${import.meta.env.BASE_URL}displays/corrugate_displays/Floorstand_3S.glb`)
@@ -33,6 +33,10 @@ function App() {
   const [displayRotation, setDisplayRotation] = useState(0)
   const exportFnRef = useRef(null)
   const exportARFnRef = useRef(null)
+
+  // AR Management State
+  const [arStatus, setArStatus] = useState('idle') // 'idle' | 'generating' | 'ready'
+  const [arUrl, setArUrl] = useState(null)
 
   // Detect iOS/iPad support
   const isIOSPlatform = useMemo(() => isIOS(), [])
@@ -66,12 +70,31 @@ function App() {
   const handleExport = useCallback(() => { exportFnRef.current?.() }, [])
 
   const handleExportARReady = useCallback((fn) => { exportARFnRef.current = fn }, [])
-  const handleExportAR = useCallback(async () => {
+  
+  // Phase 1: Heavy Async Generation
+  const handleGenerateAR = useCallback(async () => {
     const group = exportARFnRef.current?.()
-    if (group) {
-      await exportToAR(group)
+    if (!group) return
+    
+    setArStatus('generating')
+    const url = await generateUSDZ(group)
+    if (url) {
+      setArUrl(url)
+      setArStatus('ready')
+    } else {
+      setArStatus('idle')
     }
   }, [])
+
+  // Phase 2: Direct Synchronous Launch
+  const handleLaunchAR = useCallback(() => {
+    if (arUrl) {
+      launchARQuickLook(arUrl)
+      // Reset for next time
+      setArStatus('idle')
+      setArUrl(null)
+    }
+  }, [arUrl])
 
   const handleDisplaySelect = useCallback((url) => {
     setDisplayUrl(url)
@@ -82,7 +105,12 @@ function App() {
     setIsSelectorOpen(false)
     setPlacements({})
     setDisplayMaterials([])
-  }, [])
+    
+    // Reset AR
+    setArStatus('idle')
+    if (arUrl) URL.revokeObjectURL(arUrl)
+    setArUrl(null)
+  }, [arUrl])
 
   const handleSelectShelf = useCallback((id) => {
     setActiveShelfId(id)
@@ -174,7 +202,9 @@ function App() {
         draggedProduct={draggedProduct}
         displayMaterials={displayMaterials}
         onExport={handleExport}
-        onExportAR={handleExportAR}
+        onGenerateAR={handleGenerateAR}
+        onLaunchAR={handleLaunchAR}
+        arStatus={arStatus}
         isIOS={isIOSPlatform}
         placements={placements}
         activeShelfId={activeShelfId}

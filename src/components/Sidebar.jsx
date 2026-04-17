@@ -76,7 +76,9 @@ export default function Sidebar({
   draggedProduct,
   displayMaterials, 
   onExport,
-  onExportAR,
+  onGenerateAR,
+  onLaunchAR,
+  arStatus,
   isIOS,
   placements,
   activeShelfId,
@@ -261,20 +263,27 @@ export default function Sidebar({
       </div>
 
       {/* Export Section */}
-      <div className="pt-5 mt-auto border-t border-glass-border space-y-3">
+      <div className="pt-5 mt-auto border-t border-glass-border space-y-2.5">
         {isIOS && (
           <button
-            onClick={onExportAR}
-            className="w-full py-4 rounded-xl bg-gradient-to-br from-accent to-blue-600 text-white font-black text-xs tracking-[0.2em] flex items-center justify-center gap-2 hover:shadow-[0_0_20px_rgba(0,136,255,0.4)] transition-all animate-in fade-in slide-in-from-bottom-2"
+            onClick={arStatus === 'ready' ? onLaunchAR : (arStatus === 'generating' ? null : onGenerateAR)}
+            disabled={arStatus === 'generating'}
+            className={`w-full py-4 rounded-xl text-white font-black text-xs tracking-[0.2em] flex items-center justify-center gap-2 transition-all shadow-xl ${
+              arStatus === 'ready' 
+                ? 'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-500/20 active:scale-95' 
+                : arStatus === 'generating'
+                  ? 'bg-white/10 text-text-dim animate-pulse cursor-wait'
+                  : 'bg-gradient-to-br from-accent to-blue-600 shadow-blue-500/20 active:scale-[0.98]'
+            }`}
           >
-            <Box size={18} />
-            VIEW IN AR
+            <Box size={18} className={arStatus === 'generating' ? 'animate-spin' : ''} />
+            {arStatus === 'ready' ? 'LAUNCH AR' : (arStatus === 'generating' ? 'PREPARING...' : 'VIEW IN AR')}
           </button>
         )}
         
         <button
           onClick={onExport}
-          className="w-full py-4 rounded-xl bg-text-main text-white font-bold text-sm tracking-wide flex items-center justify-center gap-2 hover:bg-zinc-800 hover:shadow-[0_0_20px_rgba(255,255,255,0.1)] transition-all"
+          className="w-full py-3.5 rounded-xl bg-text-main text-white font-bold text-sm tracking-wide flex items-center justify-center gap-2 hover:bg-zinc-800 transition-all active:scale-[0.98]"
         >
           <Download size={18} />
           EXPORT PNG
