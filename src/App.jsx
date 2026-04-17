@@ -38,8 +38,8 @@ function App() {
   const [arStatus, setArStatus] = useState('idle') // 'idle' | 'generating' | 'ready'
   const [arUrl, setArUrl] = useState(null)
 
-  // Detect iOS/iPad support
-  const isIOSPlatform = useMemo(() => isIOS(), [])
+  // Detect iOS/iPad support (FORCED TRUE FOR VERIFICATION)
+  const isIOSPlatform = true // useMemo(() => isIOS(), [])
   
   // ─── TOUCH/POINTER DRAG STATE ──────────────────────────────────────────────
   const [dragPosition, setDragPosition] = useState(null) // { x, y }
