@@ -1,7 +1,10 @@
 import { Canvas } from '@react-three/fiber'
 
 function ProductMesh({ product }) {
-  const [w, h, d] = product.dimensions
+  const [wi, hi, di] = product.dimensions
+  const w = wi * 0.0254
+  const h = hi * 0.0254
+  const d = di * 0.0254
   const radXZ = Math.min(w, d) / 2
 
   const geometry = (() => {
@@ -38,7 +41,11 @@ export default function ProductThumbnail({ product }) {
   // Short-circuit for custom standee products — just show the PNG
   if (product.isCustom) return <CustomThumbnail product={product} />
 
-  const [w, h, d] = product.dimensions
+  // Normalized Inch values for framing
+  const [wi, hi, di] = product.dimensions
+  const w = wi * 0.0254
+  const h = hi * 0.0254
+  const d = di * 0.0254
   const radius = Math.sqrt(w * w + h * h + d * d) / 2
   const fov = 20
   const halfFovRad = (fov / 2) * (Math.PI / 180)

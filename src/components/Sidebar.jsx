@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Upload, Download, Layers, Box, ChevronDown, ChevronUp, ChevronRight, X, Monitor } from 'lucide-react'
+import { useState, useMemo, useRef } from 'react'
+import { Upload, Download, Layers, Box, ChevronDown, ChevronUp, ChevronRight, X, Search } from 'lucide-react'
 import ProductThumbnail from './ProductThumbnail'
 import MaterialEditor from './MaterialEditor'
 import CustomProductCreator from './CustomProductCreator'
@@ -82,43 +82,59 @@ export default function Sidebar({
   isIOS,
   placements,
   activeShelfId,
-  onSelectShelf,
-  onUpdateShelf,
   onOpenDisplaySelector,
+  onOpenProductGallery,
   currentDisplayUrl,
-  displayLibrary
+  displayLibrary,
+  productLibrary = [],
+  stagedProductIds = [],
+  onAddProduct,
+  onRemoveProduct,
+  onToggleStaging
 }) {
   const [demoOpen, setDemoOpen]       = useState(false)
   const [customOpen, setCustomOpen]   = useState(false)
-  const [customProducts, setCustomProducts] = useState([])
 
   const handleDisplayUpload = (e) => {
     const file = e.target.files?.[0]
     if (file) setDisplayUrl(URL.createObjectURL(file))
   }
 
-  const handleAddCustomProduct = (product) => {
-    setCustomProducts(prev => [...prev, product])
+  // Small helper for dynamic folders
+  const FolderHeader = ({ title, count, defaultOpen, children }) => {
+    const [isOpen, setIsOpen] = useState(defaultOpen)
+    return (
+      <div className="flex flex-col">
+        <button className="mat-group-header" onClick={() => setIsOpen(!isOpen)}>
+          <span className="mat-group-name">{title}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] font-bold opacity-30">{count}</span>
+            {isOpen ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+          </div>
+        </button>
+        {isOpen && <div className="mat-group-cards">{children}</div>}
+      </div>
+    )
   }
 
-  const handleRemoveCustomProduct = (id) => {
-    setCustomProducts(prev => {
-      const target = prev.find(p => p.id === id)
-      if (target?.textureUrl) URL.revokeObjectURL(target.textureUrl)
-      return prev.filter(p => p.id !== id)
+  const stagedProducts = useMemo(() => 
+    productLibrary.filter(p => stagedProductIds.includes(p.id)), 
+    [productLibrary, stagedProductIds]
+  )
+  
+  const productsByFolder = useMemo(() => {
+    const map = {}
+    productLibrary.forEach(p => {
+      const folder = p.folder || (p.isCustom ? 'Custom Library' : '3D Assets')
+      if (!map[folder]) map[folder] = []
+      map[folder].push(p)
     })
-  }
-
-  const demoProducts = [
-    { id: 'box-1',      name: 'Box.glb',   geometry: 'box',      dimensions: [0.12, 0.15, 0.12], color: '#ffffff' },
-    { id: 'sphere-1',   name: 'Ball.glb',  geometry: 'sphere',   dimensions: [0.10, 0.10, 0.10], color: '#ff6b35' },
-    { id: 'cylinder-1', name: 'Can.glb',   geometry: 'cylinder', dimensions: [0.08, 0.18, 0.08], color: '#44ff88' },
-    { id: 'cone-1',     name: 'Cone.glb',  geometry: 'cone',     dimensions: [0.10, 0.16, 0.10], color: '#ff44cc' },
-  ]
+    return map
+  }, [productLibrary])
 
   const hasGroups = displayMaterials?.some(g => g.materials?.length > 0)
 
-  const renderProductCard = (product) => (
+  const renderProductCard = (product, isStaged = false) => (
     <div key={product.id} className="flex flex-col items-center gap-1 relative">
       <div
         className={`bg-white/5 border border-glass-border rounded-xl p-2 cursor-grab active:cursor-grabbing hover:bg-white/10 transition-all w-full aspect-square ${draggedProduct?.id === product.id ? 'opacity-30' : ''}`}
@@ -138,15 +154,26 @@ export default function Sidebar({
       >
         <ProductThumbnail product={product} />
       </div>
-      <span className="text-xs font-semibold text-center leading-tight text-text-main">{product.name?.replace(/\.glb$/i, '')}</span>
-      {product.isCustom && (
+      <span className="text-[10px] font-semibold text-center leading-tight text-text-main truncate w-full px-1">{product.name?.replace(/\.glb$/i, '')}</span>
+      
+      {isStaged ? (
         <button
-          className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500/80 hover:bg-red-500 flex items-center justify-center"
-          onClick={() => handleRemoveCustomProduct(product.id)}
-          title="Remove"
+          className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-accent/20 border border-accent/40 text-accent hover:bg-accent hover:text-white flex items-center justify-center transition-all shadow-lg"
+          onClick={() => onToggleStaging(product.id)}
+          title="Remove from Bin"
         >
-          <X size={9} />
+          <X size={10} />
         </button>
+      ) : (
+        product.isCustom && (
+          <button
+            className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500/80 hover:bg-red-500 flex items-center justify-center text-white"
+            onClick={() => onRemoveProduct(product.id)}
+            title="Delete Permanently"
+          >
+            <X size={9} />
+          </button>
+        )
       )}
     </div>
   )
@@ -165,50 +192,40 @@ export default function Sidebar({
       {/* Scrollable contents */}
       <div className="flex-1 overflow-y-auto space-y-8 pr-1 custom-scrollbar">
 
-        {/* ─── DISPLAY CATEGORY ─── */}
         <SidebarCategory title="Display" icon={Layers} defaultOpen={false}>
           
-          {/* Active Model Summary & Change Trigger */}
-          <SidebarSection title="Display Structure" defaultOpen={false}>
-            <button
-              onClick={onOpenDisplaySelector}
-              className="w-full mt-2 p-1.5 rounded-2xl border border-white/5 bg-white/5 hover:bg-white/10 hover:border-accent/40 transition-all group flex items-center gap-3 active:scale-[0.98]"
-            >
-              <div className="w-14 h-14 rounded-xl bg-black/40 border border-white/10 overflow-hidden flex-shrink-0 shadow-inner">
-                {(() => {
-                  const active = displayLibrary.find(d => currentDisplayUrl.includes(d.url))
-                  if (active) {
-                    return (
-                      <img 
-                        src={`${import.meta.env.BASE_URL}previews/${active.thumb}`} 
-                        alt="Active Preview"
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                      />
-                    )
-                  }
+          {/* Change Display Trigger */}
+          <button
+            onClick={onOpenDisplaySelector}
+            className="w-full mt-2 p-1.5 rounded-2xl border border-white/5 bg-white/5 hover:bg-white/10 hover:border-accent/40 transition-all group flex items-center gap-3 active:scale-[0.98]"
+          >
+            <div className="w-14 h-14 rounded-xl bg-black/40 border border-white/10 overflow-hidden flex-shrink-0 shadow-inner">
+              {(() => {
+                const active = displayLibrary.find(d => currentDisplayUrl.includes(d.url))
+                if (active) {
                   return (
-                    <div className="w-full h-full flex items-center justify-center text-text-dim/20 bg-accent/5">
-                      <Box size={20} />
-                    </div>
+                    <img 
+                      src={`${import.meta.env.BASE_URL}previews/${active.thumb}`} 
+                      alt="Active Preview"
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                    />
                   )
-                })()}
-              </div>
+                }
+                return (
+                  <div className="w-full h-full flex items-center justify-center text-text-dim/20 bg-accent/5">
+                    <Box size={20} />
+                  </div>
+                )
+              })()}
+            </div>
               <div className="flex flex-col text-left overflow-hidden">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-accent/20 flex items-center justify-center text-accent group-hover:scale-110 transition-transform">
-                    <Monitor size={20} />
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-text-dim">Change Display</span>
-                    <span className="text-xs font-bold text-text-main truncate max-w-[140px]">
-                      {currentDisplayUrl.split('/').pop().replace('.glb', '').replace(/_/g, ' ')}
-                    </span>
-                  </div>
-                </div>
+                <span className="text-[10px] font-black uppercase tracking-widest text-text-dim">Change Display</span>
+                <span className="text-xs font-bold text-text-main truncate max-w-[140px]">
+                  {currentDisplayUrl.split('/').pop().replace('.glb', '').replace(/_/g, ' ')}
+                </span>
               </div>
-              <ChevronRight size={16} className="text-text-dim/40 group-hover:translate-x-1 transition-transform" />
-            </button>
-          </SidebarSection>
+            <ChevronRight size={16} className="text-text-dim/40 group-hover:translate-x-1 transition-transform" />
+          </button>
 
           {hasGroups && (
             <SidebarSection title="Display Graphics">
@@ -221,41 +238,53 @@ export default function Sidebar({
         </SidebarCategory>
 
         {/* ─── ADD PRODUCTS CATEGORY ─── */}
-        <SidebarCategory title="Add Products" icon={Box}>
+        <SidebarCategory title="Products" icon={Box} defaultOpen={true}>
           <div className="space-y-3 pt-2">
             
-            {/* Custom Products Sub-group */}
-            <div className="mat-group">
-              <button className="mat-group-header" onClick={() => setCustomOpen(p => !p)}>
-                <span className="mat-group-name">Custom Products</span>
-                {customOpen ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
-              </button>
-              {customOpen && (
-                <div className="mat-group-cards">
-                  <CustomProductCreator onAdd={handleAddCustomProduct} />
-                  {customProducts.length > 0 && (
-                    <div className="grid grid-cols-2 gap-2 mt-2">
-                      {customProducts.map(renderProductCard)}
-                    </div>
-                  )}
+            {/* HOLDING BIN */}
+            {stagedProducts.length > 0 && (
+              <div className="mat-group bg-accent/5 border border-accent/10 rounded-xl p-3 pt-2">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-accent">Holding Bin</span>
+                  <span className="text-[10px] font-bold text-accent/60">{stagedProducts.length} Items</span>
                 </div>
-              )}
-            </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {stagedProducts.map(p => renderProductCard(p, true))}
+                </div>
+              </div>
+            )}
 
-            {/* Demo Shapes Sub-group */}
-            <div className="mat-group">
-              <button className="mat-group-header" onClick={() => setDemoOpen(p => !p)}>
-                <span className="mat-group-name">Demo Shapes</span>
-                {demoOpen ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
-              </button>
-              {demoOpen && (
-                <div className="mat-group-cards">
-                  <div className="grid grid-cols-2 gap-2 p-1">
-                    {demoProducts.map(renderProductCard)}
-                  </div>
+            {/* FULL GALLERY TRIGGER */}
+            <button
+              onClick={onOpenProductGallery}
+              className="w-full mb-2 p-3 rounded-xl bg-accent/10 border border-accent/20 hover:bg-accent/20 hover:border-accent/40 transition-all group flex items-center justify-between active:scale-[0.98]"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-accent text-white flex items-center justify-center group-hover:rotate-12 transition-transform">
+                  <Search size={16} />
                 </div>
-              )}
-            </div>
+                <div className="flex flex-col text-left">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-accent">Manage Products</span>
+                </div>
+              </div>
+              <ChevronRight size={14} className="text-accent/60 group-hover:translate-x-1 transition-transform" />
+            </button>
+
+            {/* DYNAMIC FOLDERS */}
+            {Object.entries(productsByFolder).sort(([a], [b]) => a.localeCompare(b)).map(([folderName, folderProducts]) => (
+              <div key={folderName} className="mat-group">
+                <FolderHeader 
+                  title={folderName} 
+                  count={folderProducts.length} 
+                  defaultOpen={folderName === 'Demo Product' || folderName === 'Custom Library'}
+                >
+                  {folderName === 'Custom Library' && <CustomProductCreator onAdd={onAddProduct} />}
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    {folderProducts.map(p => renderProductCard(p))}
+                  </div>
+                </FolderHeader>
+              </div>
+            ))}
 
           </div>
         </SidebarCategory>

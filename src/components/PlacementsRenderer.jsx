@@ -12,7 +12,10 @@ const sharedInvisibleMat = new THREE.MeshBasicMaterial({ visible: false })
  */
 function CustomProductBatch({ product, matrices }) {
   const meshRef = useRef()
-  const [w, h, d] = product.dimensions
+  const [wi, hi, di] = product.dimensions
+  const w = wi * 0.0254
+  const h = hi * 0.0254
+  const d = di * 0.0254
   
   const texture = useLoader(THREE.TextureLoader, product.textureUrl)
   texture.colorSpace = THREE.SRGBColorSpace
@@ -52,7 +55,10 @@ function CustomProductBatch({ product, matrices }) {
  */
 function StandardProductBatch({ product, matrices }) {
   const meshRef = useRef()
-  const [w, h, d] = product.dimensions
+  const [wi, hi, di] = product.dimensions
+  const w = wi * 0.0254
+  const h = hi * 0.0254
+  const d = di * 0.0254
 
   useEffect(() => {
     if (!meshRef.current) return
@@ -114,7 +120,7 @@ function ProductGroup({ dropzoneMesh, items = [], rotation = 0 }) {
     
     items.forEach(item => {
       const f = item.facings || 1
-      const lw = (item.product.dimensions?.[0] || 0.1) / worldScale.x
+      const lw = ((item.product.dimensions?.[0] || 4) * 0.0254) / worldScale.x
       totalFacings += f
       totalProductWidthLocal += f * lw
     })
@@ -128,7 +134,11 @@ function ProductGroup({ dropzoneMesh, items = [], rotation = 0 }) {
 
     items.forEach((item) => {
       const { product, facings = 1, stackVertical = false, spacing = 0, autoFit = false } = item
-      const [pWidth, pHeight, pDepth] = product.dimensions
+      const [piW, piH, piD] = product.dimensions
+      const pWidth  = piW * 0.0254
+      const pHeight = piH * 0.0254
+      const pDepth  = piD * 0.0254
+      
       const lpWidth  = pWidth / worldScale.x
       const lpHeight = pHeight / worldScale.y
       const lpDepth  = pDepth / worldScale.z

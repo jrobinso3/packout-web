@@ -34,8 +34,8 @@ export default function PropertiesPanel({ placements, unitPrices, unitCosts, onU
           if (!product?.dimensions) return
 
           const [pWidth, pHeight, pDepth] = product.dimensions
-          const lpHeight = pHeight / worldScale.y
-          const lpDepth  = pDepth / worldScale.z
+          const lpHeight = (pHeight * 0.0254) / worldScale.y
+          const lpDepth  = (pDepth * 0.0254) / worldScale.z
 
           const countY = stackVertical ? Math.max(1, Math.floor(localHeight / lpHeight)) : 1
           const countZ = Math.max(1, Math.floor(localDepth / lpDepth))

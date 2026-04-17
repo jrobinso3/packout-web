@@ -46,9 +46,9 @@ export default function CustomProductCreator({ onAdd }) {
       name:       name || 'Custom',
       geometry:   'box',
       dimensions: [
-        parseFloat(width)  * INCH_TO_M,
-        parseFloat(height) * INCH_TO_M,
-        parseFloat(depth || '0.5') * INCH_TO_M,
+        parseFloat(width),
+        parseFloat(height),
+        parseFloat(depth || '0.5'),
       ],
       textureUrl: previewUrl,
       isCustom:   true,

@@ -6,13 +6,25 @@ import Sidebar from './components/Sidebar'
 import PropertiesPanel from './components/PropertiesPanel'
 import DisplaySelectorModal from './components/DisplaySelectorModal'
 import ProductThumbnail from './components/ProductThumbnail'
+import ProductGalleryModal from './components/ProductGalleryModal'
 import { generateUSDZ, launchARQuickLook, isIOS } from './utils/ARUtility'
+import { useProductLibrary } from './hooks/useProductLibrary'
 
 function App() {
   const [displayUrl, setDisplayUrl] = useState(`${import.meta.env.BASE_URL}displays/corrugate_displays/Floorstand_3S.glb`)
   const [draggedProduct, setDraggedProduct] = useState(null)
   const [isSelectorOpen, setIsSelectorOpen] = useState(false)
+  const [isLibraryOpen, setIsLibraryOpen]  = useState(false)
+  const [stagedProductIds, setStagedProductIds] = useState([])
   const [displayLibrary, setDisplayLibrary] = useState([])
+  
+  const { 
+    products, 
+    addProduct, 
+    addProductsBatch, 
+    updateProduct, 
+    removeProduct 
+  } = useProductLibrary()
   
   useEffect(() => {
     fetch(`${import.meta.env.BASE_URL}displays/manifest.json`)
@@ -153,7 +165,7 @@ function App() {
       const targetWidthPerProduct = worldWidth / newItems.length
       
       newItems.forEach(item => {
-        item.facings = Math.max(1, Math.floor(targetWidthPerProduct / item.product.dimensions[0]))
+        item.facings = Math.max(1, Math.floor(targetWidthPerProduct / (item.product.dimensions[0] * 0.0254)))
       })
 
       return {
@@ -175,6 +187,32 @@ function App() {
   const handleMaterialsReady = useCallback((mats) => {
     setDisplayMaterials(mats)
   }, [])
+
+  const handleToggleStagedProduct = useCallback((id) => {
+    setStagedProductIds(prev => {
+      if (prev.includes(id)) return prev.filter(pid => pid !== id)
+      return [...prev, id]
+    })
+  }, [])
+
+  // --- LIVE SYNC: When a product is updated in the library, sync all placed instances ---
+  const handleProductUpdated = useCallback(async (id, updates) => {
+    const updated = await updateProduct(id, updates)
+    if (!updated) return
+
+    setPlacements(prev => {
+      const next = { ...prev }
+      Object.keys(next).forEach(shelfId => {
+        next[shelfId] = {
+          ...next[shelfId],
+          items: next[shelfId].items.map(item => 
+            item.product.id === id ? { ...item, product: updated } : item
+          )
+        }
+      })
+      return next
+    })
+  }, [updateProduct])
 
   return (
     <main className="w-screen h-screen overflow-hidden relative bg-[#0d0f12]">
@@ -211,8 +249,14 @@ function App() {
         onSelectShelf={handleSelectShelf}
         onUpdateShelf={handleUpdateShelf}
         onOpenDisplaySelector={() => setIsSelectorOpen(true)}
+        onOpenProductGallery={() => setIsLibraryOpen(true)}
         currentDisplayUrl={displayUrl}
         displayLibrary={displayLibrary}
+        productLibrary={products}
+        onAddProduct={addProduct}
+        onRemoveProduct={removeProduct}
+        stagedProductIds={stagedProductIds}
+        onToggleStaging={handleToggleStagedProduct}
       />
 
       {/* ─── VIRTUAL DRAG PREVIEW ─── */}
@@ -275,6 +319,19 @@ function App() {
           setDisplayUrl={handleDisplaySelect}
           onClose={() => setIsSelectorOpen(false)}
           displayLibrary={displayLibrary}
+        />
+      )}
+
+      {isLibraryOpen && (
+        <ProductGalleryModal 
+          products={products}
+          onAddProduct={addProduct}
+          onUpdateProduct={handleProductUpdated}
+          onRemoveProduct={removeProduct}
+          onBatchImport={addProductsBatch}
+          stagedProductIds={stagedProductIds}
+          onToggleStaging={handleToggleStagedProduct}
+          onClose={() => setIsLibraryOpen(false)}
         />
       )}
     </main>
