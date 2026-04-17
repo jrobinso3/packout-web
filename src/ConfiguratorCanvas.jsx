@@ -149,7 +149,7 @@ export default function ConfiguratorCanvas({
   return (
     <div className="absolute inset-0 z-0">
       <Canvas
-        shadows={{ type: THREE.PCFSoftShadowMap }}
+        shadows={{ type: THREE.PCFShadowMap }}
         camera={{ position: [2.5, 1, 4], fov: 22.6 }}
         gl={{
           preserveDrawingBuffer: true,

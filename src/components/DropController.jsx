@@ -156,18 +156,22 @@ export default function DropController({ draggedProduct, onDisplayDrop, activeSh
       }
     }
 
+
     const handleDragOver = (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy' }
 
-    gl.domElement.addEventListener('pointermove', handlePointerMove)
-    gl.domElement.addEventListener('pointerup',   handlePointerUp)
+    // Use window for move/up to ensure we catch events outside the canvas during a drag
+    window.addEventListener('pointermove', handlePointerMove)
+    window.addEventListener('pointerup',   handlePointerUp)
+    
     gl.domElement.addEventListener('mouseleave',  clearHover)
     gl.domElement.addEventListener('click',       handleMouseClick)
     gl.domElement.addEventListener('dragover',    handleDragOver)
-    gl.domElement.addEventListener('drop',        handlePointerUp) // Support both
+    gl.domElement.addEventListener('drop',        handlePointerUp)
 
     return () => {
-      gl.domElement.removeEventListener('pointermove', handlePointerMove)
-      gl.domElement.removeEventListener('pointerup',   handlePointerUp)
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('pointerup',   handlePointerUp)
+      
       gl.domElement.removeEventListener('mouseleave',  clearHover)
       gl.domElement.removeEventListener('click',       handleMouseClick)
       gl.domElement.removeEventListener('dragover',    handleDragOver)

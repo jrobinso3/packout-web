@@ -5,6 +5,7 @@ import ConfiguratorCanvas from './ConfiguratorCanvas'
 import Sidebar from './components/Sidebar'
 import PropertiesPanel from './components/PropertiesPanel'
 import DisplaySelectorModal from './components/DisplaySelectorModal'
+import ProductThumbnail from './components/ProductThumbnail'
 
 function App() {
   const [displayUrl, setDisplayUrl] = useState(`${import.meta.env.BASE_URL}displays/corrugate_displays/Floorstand_3S.glb`)

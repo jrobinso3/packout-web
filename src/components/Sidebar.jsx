@@ -72,7 +72,8 @@ function SidebarCategory({ title, icon: Icon, defaultOpen = false, disabled = fa
 
 export default function Sidebar({ 
   setDisplayUrl, 
-  setDraggedProduct, 
+  setDraggedProduct,
+  draggedProduct,
   displayMaterials, 
   onExport,
   placements,
@@ -122,7 +123,7 @@ export default function Sidebar({
           const startX = e.clientX
           const startY = e.clientY
           const handleMove = (emove) => {
-            if (Math.hypot(emove.clientX - startX, emove.clientY - startY) > 5) {
+            if (Math.hypot(emove.clientX - startX, emove.clientY - startY) > 15) {
               setDraggedProduct(product)
               window.removeEventListener('pointermove', handleMove)
             }
