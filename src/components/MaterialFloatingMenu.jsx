@@ -1,3 +1,4 @@
+import { useState, useRef } from 'react'
 import { Html } from '@react-three/drei'
 import { ArrowRight, Box, X } from 'lucide-react'
 import { MaterialCard } from './MaterialEditor'
@@ -11,7 +12,46 @@ export default function MaterialFloatingMenu({
   onClose,
   anchorPosition
 }) {
+  // High-performance dragging refs
+  const containerRef = useRef()
+  const dragOffset  = useRef({ x: 0, y: 0 })
+  const isDragging  = useRef(false)
+  const dragStart   = useRef({ x: 0, y: 0 })
+
   if (!group) return null
+
+  const handleHeaderPointerDown = (e) => {
+    e.stopPropagation()
+    const headerNode = e.currentTarget
+    headerNode.setPointerCapture(e.pointerId)
+    
+    const startX = e.clientX
+    const startY = e.clientY
+    const { x: initialX, y: initialY } = dragOffset.current
+    
+    const handleMove = (emove) => {
+      const dx = emove.clientX - startX
+      const dy = emove.clientY - startY
+      
+      const newX = initialX + dx
+      const newY = initialY + dy
+      
+      dragOffset.current = { x: newX, y: newY }
+      
+      if (containerRef.current) {
+        containerRef.current.style.transform = `translate(calc(440px + ${newX}px), ${newY}px)`
+      }
+    }
+    
+    const handleUp = (eup) => {
+      try { headerNode.releasePointerCapture(eup.pointerId) } catch (err) {}
+      window.removeEventListener('pointermove', handleMove, { capture: true })
+      window.removeEventListener('pointerup', handleUp, { capture: true })
+    }
+    
+    window.addEventListener('pointermove', handleMove, { capture: true })
+    window.addEventListener('pointerup', handleUp, { capture: true })
+  }
 
   // Filter out internal structural materials (fluting)
   const visibleMaterials = (group.materials || []).filter(
@@ -22,18 +62,28 @@ export default function MaterialFloatingMenu({
     <Html
       position={anchorPosition}
       center
-      style={{ transform: 'translate(calc(-50% + 440px), -50%)' }}
       className="pointer-events-none select-none"
     >
-      <div
-        className="pointer-events-auto bg-glass-bg backdrop-blur-2xl border border-glass-border rounded-[2rem] shadow-3xl w-[320px] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-300"
-        onPointerDown={e => e.stopPropagation()}
-        onPointerMove={e => e.stopPropagation()}
-        onPointerUp={e => e.stopPropagation()}
+      {/* 
+        Outer wrapper isolates our spatial drag transform from Tailwind's 
+        animate-in transform, ensuring the offset isn't destroyed.
+      */}
+      <div 
+        ref={containerRef}
+        style={{ transform: `translate(calc(440px + ${dragOffset.current.x}px), ${dragOffset.current.y}px)` }}
       >
+        <div
+          className="pointer-events-auto bg-glass-bg backdrop-blur-2xl border border-glass-border rounded-[2rem] shadow-3xl w-[320px] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-300"
+          onPointerDown={e => e.stopPropagation()}
+          onPointerMove={e => e.stopPropagation()}
+          onPointerUp={e => e.stopPropagation()}
+        >
 
-        {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-black/5 bg-black/5">
+        {/* Header - Optimized Drag Handle */}
+        <div 
+          className="flex items-center justify-between p-5 border-b border-black/5 bg-black/5 cursor-grab active:cursor-grabbing select-none"
+          onPointerDown={handleHeaderPointerDown}
+        >
           <div className="flex items-center gap-2">
             <Box size={14} className="text-secondary" />
             <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-text-main">
@@ -42,6 +92,7 @@ export default function MaterialFloatingMenu({
           </div>
           <button
             onClick={onClose}
+            onPointerDown={e => e.stopPropagation()} // Prevent drag start when clicking close
             className="w-8 h-8 rounded-full bg-black/5 hover:bg-black/10 flex items-center justify-center text-text-dim/40 hover:text-text-main transition-all border border-black/5"
           >
             <X size={16} />
@@ -81,6 +132,7 @@ export default function MaterialFloatingMenu({
         </div>
 
       </div>
-    </Html>
+    </div>
+  </Html>
   )
 }

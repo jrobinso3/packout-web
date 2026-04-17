@@ -1,9 +1,13 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Trash2, Layers, GripVertical, Link, X, ArrowRight } from 'lucide-react'
 import { Html } from '@react-three/drei'
 
 export default function ShelfFloatingMenu({ shelfId, placement, onUpdate, onClose, anchorPosition }) {
   const [draggedIdx, setDraggedIdx] = useState(null)
+  
+  // High-performance dragging refs
+  const containerRef = useRef()
+  const dragOffset  = useRef({ x: 0, y: 0 })
   
   if (!placement) return null
 
@@ -24,12 +28,11 @@ export default function ShelfFloatingMenu({ shelfId, placement, onUpdate, onClos
     onUpdate(shelfId, newItems)
   }
 
-  // ─── Drag and Drop Logic ───────────────────────────────────────────────────
+  // ─── Drag and Drop Logic (Reordering) ─────────────────────────────────────
   
   const handleDragStart = (e, index) => {
     setDraggedIdx(index)
     e.dataTransfer.effectAllowed = 'move'
-    // Create a visual feedback for dragging
     setTimeout(() => {
       const card = e.target.closest('.floating-item-card')
       if (card) card.style.opacity = '0.3'
@@ -58,22 +61,67 @@ export default function ShelfFloatingMenu({ shelfId, placement, onUpdate, onClos
     setDraggedIdx(null)
   }
 
+  // ─── Repositioning Logic (Optimized) ───────────────────────────────────────
+  
+  const handleHeaderPointerDown = (e) => {
+    e.stopPropagation()
+    const headerNode = e.currentTarget
+    headerNode.setPointerCapture(e.pointerId)
+    
+    const startX = e.clientX
+    const startY = e.clientY
+    const { x: initialX, y: initialY } = dragOffset.current
+    
+    const handleMove = (emove) => {
+      const dx = emove.clientX - startX
+      const dy = emove.clientY - startY
+      
+      const newX = initialX + dx
+      const newY = initialY + dy
+      
+      dragOffset.current = { x: newX, y: newY }
+      
+      if (containerRef.current) {
+        containerRef.current.style.transform = `translate(calc(-440px + ${newX}px), ${newY}px)`
+      }
+    }
+    
+    const handleUp = (eup) => {
+      try { headerNode.releasePointerCapture(eup.pointerId) } catch (err) {}
+      window.removeEventListener('pointermove', handleMove, { capture: true })
+      window.removeEventListener('pointerup', handleUp, { capture: true })
+    }
+    
+    window.addEventListener('pointermove', handleMove, { capture: true })
+    window.addEventListener('pointerup', handleUp, { capture: true })
+  }
+
   return (
     <Html
       position={anchorPosition || [0, 0, 0]}
       center
-      style={{ transform: 'translate(calc(-50% - 440px), -50%)' }}
       className="pointer-events-none select-none"
     >
-      <div
-        className="pointer-events-auto bg-glass-bg backdrop-blur-2xl border border-glass-border rounded-[2rem] shadow-3xl w-[320px] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-300"
-        onPointerDown={e => e.stopPropagation()}
-        onPointerMove={e => e.stopPropagation()}
-        onPointerUp={e => e.stopPropagation()}
+      {/* 
+        Outer wrapper isolates our spatial drag transform from Tailwind's 
+        animate-in transform, ensuring the offset isn't destroyed.
+      */}
+      <div 
+        ref={containerRef}
+        style={{ transform: `translate(calc(-440px + ${dragOffset.current.x}px), ${dragOffset.current.y}px)` }}
       >
+        <div
+          className="pointer-events-auto bg-glass-bg backdrop-blur-2xl border border-glass-border rounded-[2rem] shadow-3xl w-[320px] overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-300"
+          onPointerDown={e => e.stopPropagation()}
+          onPointerMove={e => e.stopPropagation()}
+          onPointerUp={e => e.stopPropagation()}
+        >
         
-        {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-black/5 bg-black/5">
+        {/* Header - Optimized Drag Handle */}
+        <div 
+          className="flex items-center justify-between p-5 border-b border-black/5 bg-black/5 cursor-grab active:cursor-grabbing select-none"
+          onPointerDown={handleHeaderPointerDown}
+        >
           <div className="flex items-center gap-2">
             <Layers size={14} className="text-secondary" />
             <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-text-main">
@@ -82,6 +130,7 @@ export default function ShelfFloatingMenu({ shelfId, placement, onUpdate, onClos
           </div>
           <button 
             onClick={onClose}
+            onPointerDown={e => e.stopPropagation()} // Prevent drag start when clicking close
             className="w-8 h-8 rounded-full bg-black/5 hover:bg-black/10 flex items-center justify-center text-text-dim/40 hover:text-text-main transition-all border border-black/5"
           >
             <X size={16} />
@@ -218,6 +267,7 @@ export default function ShelfFloatingMenu({ shelfId, placement, onUpdate, onClos
         </div>
 
       </div>
-    </Html>
+    </div>
+  </Html>
   )
 }
