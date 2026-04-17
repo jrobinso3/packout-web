@@ -172,13 +172,15 @@ export function MaterialCard({ entry }) {
     setColor(hex)
     if (material.color) material.color.set(hex)
     material.needsUpdate = true
-  }, [material])
+    if (entry.onUpdateConfig) entry.onUpdateConfig({ color: hex })
+  }, [material, entry])
 
   const handleRoughness = useCallback((v) => {
     setRoughness(v)
     material.roughness = v
     material.needsUpdate = true
-  }, [material])
+    if (entry.onUpdateConfig) entry.onUpdateConfig({ roughness: v })
+  }, [material, entry])
 
   const handleMapMix = useCallback((v) => {
     setMapMix(v)
@@ -187,8 +189,12 @@ export function MaterialCard({ entry }) {
     debounceRef.current = setTimeout(() => {
       debounceRef.current = null
       applyBlend(v)
+      // Signal update for persistence
+      if (entry.onUpdateConfig) {
+        entry.onUpdateConfig({ artworkMix: v })
+      }
     }, 40)
-  }, [applyBlend, material])
+  }, [applyBlend, material, entry])
 
   // (Initial blend is handled by DisplayModel.jsx on load)
 
@@ -302,7 +308,7 @@ export function MaterialCard({ entry }) {
   )
 }
 
-function MaterialGroup({ groupName, label, materials }) {
+function MaterialGroup({ groupName, label, materials, onUpdateConfig }) {
   const [open, setOpen] = useState(false)
   const visible = (materials ?? []).filter(e => !e.name.toLowerCase().includes('fluting'))
   if (visible.length === 0) return null
@@ -318,7 +324,15 @@ function MaterialGroup({ groupName, label, materials }) {
       {open && (
         <div className="mat-group-cards">
           {visible.map(entry => (
-            <MaterialCard key={entry.uuid} entry={entry} />
+            <MaterialCard 
+              key={entry.uuid} 
+              entry={{
+                ...entry,
+                onUpdateConfig: (cfg) => {
+                  if (onUpdateConfig) onUpdateConfig(groupName, entry.uuid, cfg)
+                }
+              }} 
+            />
           ))}
         </div>
       )}
@@ -326,7 +340,7 @@ function MaterialGroup({ groupName, label, materials }) {
   )
 }
 
-export default function MaterialEditor({ groups }) {
+export default function MaterialEditor({ groups, onUpdateConfig }) {
   if (!groups?.length) return null
   const visibleGroups = groups.filter(g =>
     (g.materials ?? []).some(e => !e.name.toLowerCase().includes('fluting'))
@@ -342,6 +356,7 @@ export default function MaterialEditor({ groups }) {
             groupName={groupName}
             label={label ?? groupName}
             materials={materials ?? []}
+            onUpdateConfig={onUpdateConfig}
           />
         ))}
       </div>

@@ -9,6 +9,7 @@ import ProductThumbnail from './components/ProductThumbnail'
 import ProductGalleryModal from './components/ProductGalleryModal'
 import { generateUSDZ, launchARQuickLook, isIOS } from './utils/ARUtility'
 import { useProductLibrary } from './hooks/useProductLibrary'
+import { getSession, saveSession } from './utils/idbUtility'
 
 function App() {
   const [displayUrl, setDisplayUrl] = useState(`${import.meta.env.BASE_URL}displays/corrugate_displays/Floorstand_3S.glb`)
@@ -17,6 +18,7 @@ function App() {
   const [isLibraryOpen, setIsLibraryOpen]  = useState(false)
   const [stagedProductIds, setStagedProductIds] = useState([])
   const [displayLibrary, setDisplayLibrary] = useState([])
+  const [isHydrated, setIsHydrated] = useState(false)
   
   const { 
     products, 
@@ -37,11 +39,12 @@ function App() {
   // Each item: { id, product, facings, stackVertical, spacing }
   const [placements, setPlacements] = useState({})
   const [activeShelfId, setActiveShelfId] = useState(null)
-  const [unitPrices, setUnitPrices] = useState({}) // product.id -> Number
-  const [unitCosts, setUnitCosts] = useState({})   // product.id -> Number
+  const [unitPrices, setUnitPrices] = useState({})
+  const [unitCosts, setUnitCosts] = useState({})
   
   const [activePartId, setActivePartId] = useState(null)
   const [displayMaterials, setDisplayMaterials] = useState([])
+  const [materialConfigs, setMaterialConfigs] = useState({}) // Stores POJO overrides: { groupName: { matUuid: { color, mix } } }
   const [displayRotation, setDisplayRotation] = useState(0)
   const exportFnRef = useRef(null)
   const exportARFnRef = useRef(null)
@@ -50,15 +53,16 @@ function App() {
   const [arStatus, setArStatus] = useState('idle') // 'idle' | 'generating' | 'ready'
   const [arUrl, setArUrl] = useState(null)
 
-  // Detect iOS/iPad support (FORCED TRUE FOR VERIFICATION)
-  const isIOSPlatform = true // useMemo(() => isIOS(), [])
+  // Detect iOS/iPad support
+  const isIOSPlatform = useMemo(() => isIOS(), [])
   
   // ─── TOUCH/POINTER DRAG STATE ──────────────────────────────────────────────
+  const isTouchDevice = useMemo(() => window.matchMedia("(pointer: coarse)").matches, [])
   const [dragPosition, setDragPosition] = useState(null) // { x, y }
   
-  // Global pointer move listener for virtual drag preview
+  // Global pointer move listener for virtual drag preview (TOUCH ONLY)
   useEffect(() => {
-    if (!draggedProduct) return
+    if (!draggedProduct || !isTouchDevice) return
     const handlePointerMove = (e) => setDragPosition({ x: e.clientX, y: e.clientY })
     const handlePointerUp   = () => { setDraggedProduct(null); setDragPosition(null) }
     
@@ -97,6 +101,86 @@ function App() {
       setArStatus('idle')
     }
   }, [])
+  // ─── STABILITY RESCUE (Fix QuotaExceeded crash) ───────────────────────────
+  useEffect(() => {
+    // Clear problematic legacy keys to restore site stability
+    ['packout-display-url', 'packout-staged-ids', 'packout-placements', 'packout-materials', 'packout-prices', 'packout-costs']
+      .forEach(key => localStorage.removeItem(key))
+  }, [])
+
+  // ─── PERSISTENCE ENGINE (IDB Hydration) ───────────────────────────────────
+  useEffect(() => {
+    const hydrate = async () => {
+      try {
+        const session = await getSession()
+        if (session) {
+          if (session.displayUrl) setDisplayUrl(session.displayUrl)
+          if (session.stagedProductIds) setStagedProductIds(session.stagedProductIds)
+          if (session.placements) setPlacements(session.placements)
+          if (session.materialConfigs) setMaterialConfigs(session.materialConfigs)
+          if (session.displayMaterials) setDisplayMaterials(session.displayMaterials)
+          if (session.unitPrices) setUnitPrices(session.unitPrices)
+          if (session.unitCosts) setUnitCosts(session.unitCosts)
+        }
+      } catch (err) {
+        console.error('Failed to hydrate session:', err)
+      } finally {
+        setIsHydrated(true)
+      }
+    }
+    hydrate()
+  }, [])
+
+  // ─── PERSISTENCE ENGINE (Async Auto-Save) ─────────────────────────────────
+  useEffect(() => {
+    if (!isHydrated) return // Don't save before hydration is complete
+    
+    const saveData = async () => {
+      try {
+        // Final Sanitization: Ensure NO non-POJOs reach IDB
+        // We strip any accidental .mesh or functions that might have leaked
+        const sanitizedPlacements = {}
+        Object.keys(placements).forEach(key => {
+          sanitizedPlacements[key] = {
+            items: placements[key].items || []
+          }
+        })
+
+        await saveSession({
+          displayUrl,
+          stagedProductIds,
+          placements: sanitizedPlacements,
+          materialConfigs, // Save lightweight POJO configs instead of materials
+          unitPrices,
+          unitCosts
+        })
+      } catch (err) {
+        console.error('Failed to save session:', err)
+      }
+    }
+
+    const timer = setTimeout(saveData, 500) // Debounce saves by 500ms
+    return () => clearTimeout(timer)
+  }, [displayUrl, stagedProductIds, placements, displayMaterials, unitPrices, unitCosts, isHydrated])
+
+  // ─── PLACEMENT SYNC ───────────────────────────────────────────────────────
+  // Ensure any product physically on the display is automatically in the Bin
+  useEffect(() => {
+    const placedIds = new Set()
+    Object.values(placements).forEach(p => {
+      p.items?.forEach(item => {
+        if (item.product?.id) placedIds.add(item.product.id)
+      })
+    })
+
+    if (placedIds.size > 0) {
+      setStagedProductIds(prev => {
+        const missing = Array.from(placedIds).filter(id => !prev.includes(id))
+        if (missing.length === 0) return prev
+        return [...prev, ...missing]
+      })
+    }
+  }, [placements])
 
   // Phase 2: Direct Synchronous Launch
   const handleLaunchAR = useCallback(() => {
@@ -135,8 +219,11 @@ function App() {
   }, [])
 
   const handleDisplayDrop = (mesh, product) => {
+    if (!mesh?.name) return
+    const shelfId = mesh.name // Use stable GLB name, not transient UUID
+
     setPlacements((prev) => {
-      const existing = prev[mesh.uuid] || { mesh, items: [] }
+      const existing = prev[shelfId] || { items: [] }
       const newItems = [...existing.items]
       
       const newItem = {
@@ -170,11 +257,11 @@ function App() {
 
       return {
         ...prev,
-        [mesh.uuid]: { ...existing, items: newItems }
+        [shelfId]: { items: newItems }
       }
     })
     
-    setActiveShelfId(mesh.uuid)
+    setActiveShelfId(shelfId)
   }
 
   const handleUpdateShelf = useCallback((shelfId, newItems) => {
@@ -184,13 +271,59 @@ function App() {
     }))
   }, [])
 
-  const handleMaterialsReady = useCallback((mats) => {
-    setDisplayMaterials(mats)
+  const handleMaterialsReady = useCallback((groups) => {
+    setDisplayMaterials(groups)
+
+    // Re-hydration: Apply saved configs to the new material instances
+    groups.forEach(group => {
+      const savedGroup = materialConfigs[group.groupName]
+      if (!savedGroup) return
+
+      group.materials.forEach(entry => {
+        const savedMat = savedGroup[entry.uuid]
+        if (!savedMat) return
+
+        const mat = entry.material
+        if (savedMat.color && mat.color) mat.color.set(savedMat.color)
+        if (savedMat.roughness !== undefined) mat.roughness = savedMat.roughness
+        if (savedMat.artworkMix !== undefined) {
+          mat.userData.artworkMix = savedMat.artworkMix
+          applyArtworkMix(mat, savedMat.artworkMix)
+        }
+        mat.needsUpdate = true
+      })
+    })
+  }, [materialConfigs])
+
+  const handleMaterialUpdate = useCallback((groupName, matUuid, config) => {
+    setMaterialConfigs(prev => {
+      const next = { ...prev }
+      if (!next[groupName]) next[groupName] = {}
+      next[groupName][matUuid] = {
+        ...(next[groupName][matUuid] || {}),
+        ...config
+      }
+      return next
+    })
   }, [])
 
   const handleToggleStagedProduct = useCallback((id) => {
     setStagedProductIds(prev => {
-      if (prev.includes(id)) return prev.filter(pid => pid !== id)
+      const isRemoving = prev.includes(id)
+      if (isRemoving) {
+        // Automatically sweep this product from all shelves
+        setPlacements(current => {
+          const next = { ...current }
+          Object.keys(next).forEach(shelfId => {
+            next[shelfId] = {
+              ...next[shelfId],
+              items: next[shelfId].items.filter(item => item.product?.id !== id)
+            }
+          })
+          return next
+        })
+        return prev.filter(pid => pid !== id)
+      }
       return [...prev, id]
     })
   }, [])
@@ -257,10 +390,11 @@ function App() {
         onRemoveProduct={removeProduct}
         stagedProductIds={stagedProductIds}
         onToggleStaging={handleToggleStagedProduct}
+        onUpdateMaterialConfig={handleMaterialUpdate}
       />
 
-      {/* ─── VIRTUAL DRAG PREVIEW ─── */}
-      {draggedProduct && dragPosition && (
+      {/* ─── VIRTUAL DRAG PREVIEW (TOUCH ONLY) ─── */}
+      {isTouchDevice && draggedProduct && dragPosition && (
         <div 
           className="fixed pointer-events-none z-[100] w-16 h-16 bg-white/20 border border-accent/40 rounded-xl backdrop-blur-sm shadow-2xl flex items-center justify-center p-1"
           style={{ 

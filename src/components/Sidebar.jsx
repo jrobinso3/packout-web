@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef } from 'react'
-import { Upload, Download, Layers, Box, ChevronDown, ChevronUp, ChevronRight, X, Search } from 'lucide-react'
+import { Upload, Download, Layers, Box, ChevronDown, ChevronUp, ChevronRight, X, Search, PackageSearch, Palette } from 'lucide-react'
 import ProductThumbnail from './ProductThumbnail'
+import LazyThumbnail from './LazyThumbnail'
 import MaterialEditor from './MaterialEditor'
 import CustomProductCreator from './CustomProductCreator'
 import EditProductSection from './EditProductSection'
@@ -90,93 +91,82 @@ export default function Sidebar({
   stagedProductIds = [],
   onAddProduct,
   onRemoveProduct,
-  onToggleStaging
+  onToggleStaging,
+  onUpdateMaterialConfig
 }) {
-  const [demoOpen, setDemoOpen]       = useState(false)
-  const [customOpen, setCustomOpen]   = useState(false)
+  const stagedProducts = useMemo(() => 
+    productLibrary.filter(p => stagedProductIds.includes(p.id)), 
+    [productLibrary, stagedProductIds]
+  )
 
   const handleDisplayUpload = (e) => {
     const file = e.target.files?.[0]
     if (file) setDisplayUrl(URL.createObjectURL(file))
   }
 
-  // Small helper for dynamic folders
-  const FolderHeader = ({ title, count, defaultOpen, children }) => {
-    const [isOpen, setIsOpen] = useState(defaultOpen)
-    return (
-      <div className="flex flex-col">
-        <button className="mat-group-header" onClick={() => setIsOpen(!isOpen)}>
-          <span className="mat-group-name">{title}</span>
-          <div className="flex items-center gap-2">
-            <span className="text-[9px] font-bold opacity-30">{count}</span>
-            {isOpen ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
-          </div>
-        </button>
-        {isOpen && <div className="mat-group-cards">{children}</div>}
-      </div>
-    )
-  }
-
-  const stagedProducts = useMemo(() => 
-    productLibrary.filter(p => stagedProductIds.includes(p.id)), 
-    [productLibrary, stagedProductIds]
-  )
-  
-  const productsByFolder = useMemo(() => {
-    const map = {}
-    productLibrary.forEach(p => {
-      const folder = p.folder || (p.isCustom ? 'Custom Library' : '3D Assets')
-      if (!map[folder]) map[folder] = []
-      map[folder].push(p)
-    })
-    return map
-  }, [productLibrary])
 
   const hasGroups = displayMaterials?.some(g => g.materials?.length > 0)
 
-  const renderProductCard = (product, isStaged = false) => (
-    <div key={product.id} className="flex flex-col items-center gap-1 relative">
-      <div
-        className={`bg-white/5 border border-glass-border rounded-xl p-2 cursor-grab active:cursor-grabbing hover:bg-white/10 transition-all w-full aspect-square ${draggedProduct?.id === product.id ? 'opacity-30' : ''}`}
-        style={{ touchAction: 'none' }}
-        onPointerDown={(e) => {
-          const startX = e.clientX
-          const startY = e.clientY
-          const handleMove = (emove) => {
-            if (Math.hypot(emove.clientX - startX, emove.clientY - startY) > 15) {
+  const renderProductCard = (product, isStaged = false) => {
+    const isTouchDevice = window.matchMedia("(pointer: coarse)").matches
+    
+    return (
+      <div key={product.id} className="flex flex-col items-center gap-1 relative">
+        <div
+          className={`bg-white/5 border border-glass-border rounded-xl p-2 cursor-grab active:cursor-grabbing hover:bg-white/10 transition-all w-full aspect-square ${draggedProduct?.id === product.id ? 'opacity-30' : ''}`}
+          style={{ touchAction: 'none' }}
+          draggable={!isTouchDevice}
+          onDragStart={(e) => {
+            if (!isTouchDevice) {
               setDraggedProduct(product)
-              window.removeEventListener('pointermove', handleMove)
+              // Customize the drag image if needed, otherwise browser defaults work well
+              e.dataTransfer.effectAllowed = 'copy'
             }
-          }
-          window.addEventListener('pointermove', handleMove)
-          window.addEventListener('pointerup', () => window.removeEventListener('pointermove', handleMove), { once: true })
-        }}
-      >
-        <ProductThumbnail product={product} />
-      </div>
-      <span className="text-[10px] font-semibold text-center leading-tight text-text-main truncate w-full px-1">{product.name?.replace(/\.glb$/i, '')}</span>
-      
-      {isStaged ? (
-        <button
-          className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-accent/20 border border-accent/40 text-accent hover:bg-accent hover:text-white flex items-center justify-center transition-all shadow-lg"
-          onClick={() => onToggleStaging(product.id)}
-          title="Remove from Bin"
+          }}
+          onDragEnd={() => {
+            if (!isTouchDevice) setDraggedProduct(null)
+          }}
+          onPointerDown={(e) => {
+            if (!isTouchDevice) return // Native DnD will handle this
+            
+            const startX = e.clientX
+            const startY = e.clientY
+            const handleMove = (emove) => {
+              if (Math.hypot(emove.clientX - startX, emove.clientY - startY) > 15) {
+                setDraggedProduct(product)
+                window.removeEventListener('pointermove', handleMove)
+              }
+            }
+            window.addEventListener('pointermove', handleMove)
+            window.addEventListener('pointerup', () => window.removeEventListener('pointermove', handleMove), { once: true })
+          }}
         >
-          <X size={10} />
-        </button>
-      ) : (
-        product.isCustom && (
+          <LazyThumbnail product={product} />
+        </div>
+        <span className="text-[10px] font-semibold text-center leading-tight text-text-main truncate w-full px-1">{product.name?.replace(/\.glb$/i, '')}</span>
+        
+        {isStaged ? (
           <button
-            className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500/80 hover:bg-red-500 flex items-center justify-center text-white"
-            onClick={() => onRemoveProduct(product.id)}
-            title="Delete Permanently"
+            className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-accent/20 border border-accent/40 text-accent hover:bg-accent hover:text-white flex items-center justify-center transition-all shadow-lg"
+            onClick={() => onToggleStaging(product.id)}
+            title="Remove from Bin"
           >
-            <X size={9} />
+            <X size={10} />
           </button>
-        )
-      )}
-    </div>
-  )
+        ) : (
+          product.isCustom && (
+            <button
+              className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500/80 hover:bg-red-500 flex items-center justify-center text-white"
+              onClick={() => onRemoveProduct(product.id)}
+              title="Delete Permanently"
+            >
+              <X size={9} />
+            </button>
+          )
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="absolute left-4 top-4 bottom-4 w-80 bg-glass-bg border border-glass-border backdrop-blur-md rounded-2xl p-6 flex flex-col z-10 shadow-2xl flex-shrink-0">
@@ -230,34 +220,24 @@ export default function Sidebar({
           {hasGroups && (
             <SidebarSection title="Display Graphics">
               <div className="mt-2 text-text-main">
-                <MaterialEditor groups={displayMaterials} />
+                <MaterialEditor 
+                  groups={displayMaterials} 
+                  onUpdateConfig={onUpdateMaterialConfig}
+                />
               </div>
             </SidebarSection>
           )}
 
         </SidebarCategory>
 
-        {/* ─── ADD PRODUCTS CATEGORY ─── */}
-        <SidebarCategory title="Products" icon={Box} defaultOpen={true}>
+        {/* ─── STAGING BIN CATEGORY ─── */}
+        <SidebarCategory title="Product Bin" icon={Box} defaultOpen={true}>
           <div className="space-y-3 pt-2">
             
-            {/* HOLDING BIN */}
-            {stagedProducts.length > 0 && (
-              <div className="mat-group bg-accent/5 border border-accent/10 rounded-xl p-3 pt-2">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-accent">Holding Bin</span>
-                  <span className="text-[10px] font-bold text-accent/60">{stagedProducts.length} Items</span>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {stagedProducts.map(p => renderProductCard(p, true))}
-                </div>
-              </div>
-            )}
-
             {/* FULL GALLERY TRIGGER */}
             <button
               onClick={onOpenProductGallery}
-              className="w-full mb-2 p-3 rounded-xl bg-accent/10 border border-accent/20 hover:bg-accent/20 hover:border-accent/40 transition-all group flex items-center justify-between active:scale-[0.98]"
+              className="w-full mb-3 p-3 rounded-xl bg-accent/10 border border-accent/20 hover:bg-accent/20 hover:border-accent/40 transition-all group flex items-center justify-between active:scale-[0.98]"
             >
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-lg bg-accent text-white flex items-center justify-center group-hover:rotate-12 transition-transform">
@@ -270,21 +250,24 @@ export default function Sidebar({
               <ChevronRight size={14} className="text-accent/60 group-hover:translate-x-1 transition-transform" />
             </button>
 
-            {/* DYNAMIC FOLDERS */}
-            {Object.entries(productsByFolder).sort(([a], [b]) => a.localeCompare(b)).map(([folderName, folderProducts]) => (
-              <div key={folderName} className="mat-group">
-                <FolderHeader 
-                  title={folderName} 
-                  count={folderProducts.length} 
-                  defaultOpen={folderName === 'Demo Product' || folderName === 'Custom Library'}
-                >
-                  {folderName === 'Custom Library' && <CustomProductCreator onAdd={onAddProduct} />}
-                  <div className="grid grid-cols-2 gap-2 mt-2">
-                    {folderProducts.map(p => renderProductCard(p))}
-                  </div>
-                </FolderHeader>
+            {/* PRODUCT BIN CONTENTS */}
+            <div className="mat-group bg-accent/5 border border-accent/10 rounded-xl p-3 pt-2 min-h-[120px] flex flex-col">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-accent">Staged Product</span>
+                <span className="text-[10px] font-bold text-accent/60">{stagedProducts.length}</span>
               </div>
-            ))}
+              
+              {stagedProducts.length > 0 ? (
+                <div className="grid grid-cols-2 gap-2">
+                  {stagedProducts.map(p => renderProductCard(p, true))}
+                </div>
+              ) : (
+                <div className="flex-1 flex flex-col items-center justify-center text-center p-4 border border-dashed border-accent/20 rounded-lg">
+                  <PackageSearch size={24} className="text-accent/20 mb-2" />
+                  <p className="text-[9px] font-bold text-text-dim/40 uppercase tracking-widest leading-relaxed">Bin is currently empty.<br/>Add assets from the gallery.</p>
+                </div>
+              )}
+            </div>
 
           </div>
         </SidebarCategory>

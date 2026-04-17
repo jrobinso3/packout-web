@@ -2,9 +2,10 @@ import { useState, useMemo, useRef } from 'react'
 import { 
   X, Search, Filter, Plus, FileSpreadsheet, Upload, 
   CheckCircle2, AlertCircle, Trash2, Edit3, ImagePlus, ChevronRight,
-  Download, FileJson, Folder
+  Download, FileJson, Folder, Box, LayoutGrid, Palette
 } from 'lucide-react'
 import ProductThumbnail from './ProductThumbnail'
+import CustomProductCreator from './CustomProductCreator'
 import { parseProductExcel, matchImagesToProducts, fileToBase64 } from '../utils/excelParser'
 
 export default function ProductGalleryModal({ 
@@ -17,7 +18,7 @@ export default function ProductGalleryModal({
   onToggleStaging,
   onClose 
 }) {
-  const [activeTab, setActiveTab] = useState('browse') // 'browse' | 'import'
+  const [activeTab, setActiveTab] = useState('browse') // 'browse' | 'import' | 'design'
   const [search, setSearch]       = useState('')
   const [categoryFilter, setCategoryFilter] = useState('All')
 
@@ -244,7 +245,7 @@ export default function ProductGalleryModal({
   const renderBrowseGrid = () => {
     const grouped = {}
     filteredProducts.forEach(p => {
-      const folder = p.folder || (p.isCustom ? 'Custom' : 'Standard Assets')
+      const folder = p.folder || ((p.isCustom || p.textureUrl) ? 'Upload Custom Product' : 'Standard Assets')
       if (!grouped[folder]) grouped[folder] = []
       grouped[folder].push(p)
     })
@@ -288,7 +289,11 @@ export default function ProductGalleryModal({
 
         <div className="flex-1 overflow-y-auto pr-3 custom-scrollbar">
           <div className="flex flex-col gap-8 pb-10">
-            {Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b)).map(([folderName, items]) => {
+            {Object.entries(grouped).sort(([a], [b]) => {
+              if (a === 'Upload Custom Product') return -1
+              if (b === 'Upload Custom Product') return 1
+              return a.localeCompare(b)
+            }).map(([folderName, items]) => {
               const isCollapsed = collapsedFolders.has(folderName)
               
               return (
@@ -349,7 +354,7 @@ export default function ProductGalleryModal({
                           <div className="flex flex-col text-left px-1">
                             <span className="text-xs font-black text-text-main truncate mb-0.5">{product.name}</span>
                             <div className="flex items-center justify-between">
-                              <span className="text-[10px] font-bold text-text-dim/60 uppercase tracking-widest">{product.folder || (product.isCustom ? 'Custom' : 'Standard')}</span>
+                              <span className="text-[10px] font-bold text-text-dim/60 uppercase tracking-widest">{product.folder || ((product.isCustom || product.textureUrl) ? 'Upload Custom Product' : 'Standard')}</span>
                               <span className="text-[10px] font-black text-accent">{Math.round(product.dimensions[1] * 10)/10}" Tall</span>
                             </div>
                           </div>
@@ -396,10 +401,17 @@ export default function ProductGalleryModal({
             </button>
             <button 
               onClick={() => setActiveTab('import')}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'import' ? 'bg-accent text-white shadow-lg shadow-accent/20' : 'text-text-dim hover:text-text-main'}`}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'import' ? 'bg-secondary text-white shadow-lg shadow-secondary/20' : 'text-text-dim hover:text-text-main'}`}
             >
               <FileSpreadsheet size={14} />
-              Automation Hub
+              Automation
+            </button>
+            <button 
+              onClick={() => setActiveTab('design')}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'design' ? 'bg-accent text-white shadow-lg shadow-accent/20' : 'text-text-dim hover:text-text-main'}`}
+            >
+              <Palette size={14} />
+              Design Product
             </button>
           </div>
 
@@ -436,7 +448,28 @@ export default function ProductGalleryModal({
         </div>
 
         {/* CONTENT */}
-        {activeTab === 'browse' ? renderBrowseGrid() : renderImportStep()}
+        {activeTab === 'browse' && renderBrowseGrid()}
+        {activeTab === 'import' && renderImportStep()}
+        {activeTab === 'design' && (
+          <div className="flex-1 flex flex-col items-center justify-center -mt-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="w-full max-w-lg p-12 bg-white/5 rounded-[2.5rem] border border-white/5 shadow-2xl backdrop-blur-3xl relative overflow-hidden group">
+              <div className="absolute inset-0 bg-gradient-to-br from-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+              <div className="relative z-10 flex flex-col items-center">
+                <div className="w-20 h-20 rounded-3xl bg-accent text-white flex items-center justify-center shadow-2xl shadow-accent/40 mb-8 -rotate-6 group-hover:rotate-0 transition-transform duration-500">
+                  <Palette size={40} />
+                </div>
+                <h3 className="text-2xl font-black text-text-main mb-3 tracking-tight">Product Studio</h3>
+                <p className="text-sm text-text-dim leading-relaxed mb-10 text-center px-4">Design high-fidelity custom assets. Your creations are instantly added to the shared global library.</p>
+                <div className="w-full">
+                  <CustomProductCreator onAdd={(p) => { 
+                    onAddProduct(p)
+                    setActiveTab('browse')
+                  }} />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
       </div>
     </div>

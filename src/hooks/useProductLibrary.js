@@ -45,8 +45,27 @@ export function useProductLibrary() {
   }, [fetchLibrary])
 
   const addProduct = useCallback(async (product) => {
-    await idb.saveProduct(product)
-    await fetchLibrary()
+    try {
+      // 1. Persist Globally (Writes to public/data/products.json via Vite Middleware)
+      const res = await fetch(`${import.meta.env.BASE_URL}api/save-product`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(product)
+      })
+      
+      if (!res.ok) throw new Error('Failed to save to global registry')
+      
+      // 2. Keep local IDB copy for performance / backup
+      await idb.saveProduct(product)
+      
+      // 3. Force re-fetch from the global source
+      await fetchLibrary()
+    } catch (err) {
+      console.error('Persistence Error:', err)
+      // Fallback to local only if server fails
+      await idb.saveProduct(product)
+      await fetchLibrary()
+    }
   }, [fetchLibrary])
 
   const addProductsBatch = useCallback(async (newProducts) => {

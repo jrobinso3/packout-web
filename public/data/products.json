@@ -50,5 +50,32 @@
     "color": "#ff44cc",
     "category": "3D",
     "folder": "Demo Product"
+  },
+  {
+    "id": "custom-1776442031133",
+    "name": "unstoppables-fresh",
+    "geometry": "box",
+    "dimensions": [
+      3.5,
+      9,
+      3.5
+    ],
+    "textureUrl": "products/unstoppables-fresh.png",
+    "category": "2D",
+    "folder": "Downy",
+    "isCustom": true,
+    "color": "#ffffff"
+  },
+  {
+    "id": "custom-1776443358188",
+    "name": "unstoppables-paradise",
+    "geometry": "box",
+    "dimensions": [
+      3.5,
+      9,
+      3.5
+    ],
+    "textureUrl": "products/unstoppables-paradise.png",
+    "isCustom": true
   }
 ]

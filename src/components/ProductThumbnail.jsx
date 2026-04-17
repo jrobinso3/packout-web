@@ -38,8 +38,8 @@ function CustomThumbnail({ product }) {
 }
 
 export default function ProductThumbnail({ product }) {
-  // Short-circuit for custom standee products — just show the PNG
-  if (product.isCustom) return <CustomThumbnail product={product} />
+  // Short-circuit for standee products — prefer flat image if texture is present
+  if (product.isCustom || product.textureUrl) return <CustomThumbnail product={product} />
 
   // Normalized Inch values for framing
   const [wi, hi, di] = product.dimensions
@@ -54,6 +54,7 @@ export default function ProductThumbnail({ product }) {
   return (
     <div style={{ width: '100%', height: '100%' }}>
       <Canvas
+        frameloop="demand"
         camera={{ position: [dist * 0.625, dist * 0.5, dist], fov }}
         gl={{ alpha: true, antialias: true }}
         style={{ background: 'transparent' }}

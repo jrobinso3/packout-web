@@ -181,7 +181,7 @@ function ProductGroup({ dropzoneMesh, items = [], rotation = 0 }) {
     <group>
       {Array.from(groups.values()).map(({ product, matrices }) => (
         <Suspense key={product.id} fallback={null}>
-          {product.isCustom ? (
+          {(product.isCustom || product.textureUrl) ? (
             <CustomProductBatch product={product} matrices={matrices} />
           ) : (
             <StandardProductBatch product={product} matrices={matrices} />
@@ -192,17 +192,23 @@ function ProductGroup({ dropzoneMesh, items = [], rotation = 0 }) {
   )
 }
 
-export default function PlacementsRenderer({ placements, rotation = 0 }) {
+export default function PlacementsRenderer({ placements, rotation = 0, scene }) {
   return (
     <group>
-      {Object.entries(placements).map(([uuid, placement]) => (
-        <ProductGroup
-          key={uuid}
-          dropzoneMesh={placement.mesh}
-          items={placement.items}
-          rotation={rotation}
-        />
-      ))}
+      {Object.entries(placements).map(([shelfName, placement]) => {
+        // Re-bind: Find the live mesh instance in the scene by its stable name
+        const mesh = scene?.getObjectByName(shelfName)
+        if (!mesh) return null
+
+        return (
+          <ProductGroup
+            key={shelfName}
+            dropzoneMesh={mesh}
+            items={placement.items}
+            rotation={rotation}
+          />
+        )
+      })}
     </group>
   )
 }

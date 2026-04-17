@@ -23,6 +23,7 @@ function DimInput({ label, value, onChange }) {
 
 export default function CustomProductCreator({ onAdd }) {
   const [previewUrl, setPreviewUrl] = useState(null)
+  const [file, setFile] = useState(null)
   const [name, setName]   = useState('')
   const [width, setWidth]   = useState('')
   const [height, setHeight] = useState('')
@@ -30,42 +31,77 @@ export default function CustomProductCreator({ onAdd }) {
   const fileRef = useRef()
 
   const handleFile = (e) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const picked = e.target.files?.[0]
+    if (!picked) return
     if (previewUrl) URL.revokeObjectURL(previewUrl)
-    const url = URL.createObjectURL(file)
+    const url = URL.createObjectURL(picked)
     setPreviewUrl(url)
-    setName(file.name.replace(/\.[^.]+$/, ''))
+    setFile(picked)
+    setName(picked.name.replace(/\.[^.]+$/, ''))
   }
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!previewUrl || !width || !height) return
 
-    onAdd({
-      id:         `custom-${Date.now()}`,
-      name:       name || 'Custom',
-      geometry:   'box',
-      dimensions: [
-        parseFloat(width),
-        parseFloat(height),
-        parseFloat(depth || '0.5'),
-      ],
-      textureUrl: previewUrl,
-      isCustom:   true,
-    })
+    // File is stored in state so it survives the input being unmounted
+    if (!file) return
 
-    // Reset form
-    setPreviewUrl(null)
-    setName('')
-    setWidth('')
-    setHeight('')
-    setDepth('')
-    if (fileRef.current) fileRef.current.value = ''
+    try {
+      // 2. Encode to Base64 for resilient transfer
+      const base64Data = await new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result)
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
+
+      // 3. Physical Upload via Persistence API
+      // We use endsWith check in middleware, so /api/upload-texture works
+      const res = await fetch(`${import.meta.env.BASE_URL}api/upload-texture`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileName: file.name,
+          base64Data
+        })
+      })
+
+      if (!res.ok) throw new Error('Physical upload failed')
+      const { url } = await res.json()
+
+      // 4. Register Product with permanent texture URL
+      onAdd({
+        id:         `custom-${Date.now()}`,
+        name:       name || 'Custom',
+        geometry:   'box',
+        dimensions: [
+          parseFloat(width),
+          parseFloat(height),
+          parseFloat(depth || '0.5'),
+        ],
+        textureUrl: url, 
+        isCustom:   true,
+      })
+
+      // Reset form
+      if (previewUrl) URL.revokeObjectURL(previewUrl)
+      setPreviewUrl(null)
+      setFile(null)
+      setName('')
+      setWidth('')
+      setHeight('')
+      setDepth('')
+      if (fileRef.current) fileRef.current.value = ''
+    } catch (err) {
+      console.error('Upload Failed:', err)
+      alert(`Critical: Failed to persist product to global library. ${err.message}`)
+    }
   }
 
   const clear = () => {
     if (previewUrl) URL.revokeObjectURL(previewUrl)
     setPreviewUrl(null)
+    setFile(null)
     setName('')
     setWidth('')
     setHeight('')

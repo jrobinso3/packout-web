@@ -68,9 +68,75 @@ const syncGalleryPlugin = () => {
     configureServer(server) {
       const displaysDir = path.resolve(__dirname, 'public/displays')
       const previewsDir = path.resolve(__dirname, 'public/previews')
+      const productsDir = path.resolve(__dirname, 'public/products')
+      const dataDir     = path.resolve(__dirname, 'public/data')
       
       server.watcher.add([displaysDir, previewsDir])
       
+      // ─── PERSISTENCE API: HANDLE DISK WRITING ─────────────────────────────────
+      server.middlewares.use(async (req, res, next) => {
+        if (req.method === 'POST' && req.url.endsWith('/api/save-product')) {
+          let body = ''
+          req.on('data', chunk => { body += chunk })
+          req.on('end', () => {
+            try {
+              const product = JSON.parse(body)
+              const productsPath = path.join(dataDir, 'products.json')
+              
+              let currentProducts = []
+              if (fs.existsSync(productsPath)) {
+                currentProducts = JSON.parse(fs.readFileSync(productsPath, 'utf-8'))
+              }
+
+              // Check for duplicates by ID
+              const existingIdx = currentProducts.findIndex(p => p.id === product.id)
+              if (existingIdx >= 0) {
+                currentProducts[existingIdx] = product
+              } else {
+                currentProducts.push(product)
+              }
+
+              fs.writeFileSync(productsPath, JSON.stringify(currentProducts, null, 2))
+              
+              res.statusCode = 200
+              res.setHeader('Content-Type', 'application/json')
+              res.end(JSON.stringify({ success: true }))
+            } catch (err) {
+              res.statusCode = 500
+              res.end(JSON.stringify({ error: err.message }))
+            }
+          })
+          return
+        }
+
+        if (req.method === 'POST' && req.url.endsWith('/api/upload-texture')) {
+          let body = ''
+          req.on('data', chunk => { body += chunk })
+          req.on('end', () => {
+            try {
+              const { fileName, base64Data } = JSON.parse(body)
+              const filePath = path.join(productsDir, fileName)
+              
+              if (!fs.existsSync(productsDir)) fs.mkdirSync(productsDir, { recursive: true })
+
+              // Strip the data:image/...;base64, prefix if present
+              const buffer = Buffer.from(base64Data.replace(/^data:image\/\w+;base64,/, ""), 'base64')
+              fs.writeFileSync(filePath, buffer)
+
+              res.statusCode = 200
+              res.setHeader('Content-Type', 'application/json')
+              res.end(JSON.stringify({ success: true, url: `products/${fileName}` }))
+            } catch (err) {
+              res.statusCode = 500
+              res.end(JSON.stringify({ error: err.message }))
+            }
+          })
+          return
+        }
+        
+        next()
+      })
+
       const onChange = (filePath) => {
         const fullPath = path.resolve(filePath)
         if (fullPath.startsWith(displaysDir) || fullPath.startsWith(previewsDir)) {

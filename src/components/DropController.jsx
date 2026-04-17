@@ -31,7 +31,7 @@ export default function DropController({ draggedProduct, onDisplayDrop, activeSh
     scene.traverse(node => {
       if (!node.userData?.isDropzone) return
 
-      const isActive = activeShelfId === node.uuid
+      const isActive = activeShelfId === node.name
       const group    = node.userData.visualGroup ?? node.parent
       const color    = isActive ? ACTIVE_COLOR   : DEFAULT_COLOR
       const opacity  = isActive ? ACTIVE_OPACITY : DEFAULT_OPACITY
@@ -109,14 +109,14 @@ export default function DropController({ draggedProduct, onDisplayDrop, activeSh
       // Restore previous mesh
       if (prev) {
         const group = prev.userData.visualGroup ?? prev.parent
-        const isActive = activeShelfIdRef.current === prev.uuid
+        const isActive = activeShelfIdRef.current === prev.name
         applyToVisuals(group, isActive ? ACTIVE_COLOR : DEFAULT_COLOR, isActive ? ACTIVE_OPACITY : DEFAULT_OPACITY)
       }
 
       // Highlight new mesh
       if (collider) {
         const group = collider.userData.visualGroup ?? collider.parent
-        const isActive = activeShelfIdRef.current === collider.uuid
+        const isActive = activeShelfIdRef.current === collider.name
         applyToVisuals(group, isActive ? ACTIVE_COLOR : HOVER_COLOR, isActive ? ACTIVE_OPACITY : HOVER_OPACITY)
       }
 
@@ -149,7 +149,7 @@ export default function DropController({ draggedProduct, onDisplayDrop, activeSh
       const { x, y } = getNDC(e)
       const mesh = findBestDropzone(x, y)
       if (mesh) {
-        onSelectShelfRef.current?.(mesh.uuid)
+        onSelectShelfRef.current?.(mesh.name)
       } else {
         onSelectShelfRef.current?.(null)
         onSelectPartRef.current?.(null)

@@ -212,28 +212,45 @@ export default function ConfiguratorCanvas({
             </Suspense>
 
             <Suspense fallback={null}>
-              {placements && <PlacementsRenderer placements={placements} rotation={rotation} />}
+              {placements && (
+                <PlacementsRenderer 
+                  placements={placements} 
+                  rotation={rotation} 
+                  scene={loadedModel} 
+                />
+              )}
             </Suspense>
           </group>
 
           {/* ─── SPATIAL UI: FLOATING EDIT MENU ─── */}
-          {activeShelfId && placements[activeShelfId] && (() => {
-            const placement = placements[activeShelfId]
-            const mesh = placement.mesh
-            const center = new THREE.Vector3()
+          {activeShelfId && loadedModel && (() => {
+            const placement = placements[activeShelfId] || { items: [] }
             
-            if (mesh.geometry) {
-              if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox()
-              mesh.geometry.boundingBox.getCenter(center)
-              mesh.updateMatrixWorld() // Force world matrix update for accurate tethering during rotation
-              mesh.localToWorld(center)
+            // Re-bind: Find the live mesh instance in the scene by its stable name
+            let targetMesh = null
+            loadedModel.traverse(node => {
+              if (targetMesh) return
+              if (node.isMesh && node.name === activeShelfId) {
+                targetMesh = node
+              }
+            })
+
+            if (!targetMesh) return null
+
+            const { items = [] } = placement || {}
+            const center = new THREE.Vector3()
+            if (targetMesh.geometry) {
+              if (!targetMesh.geometry.boundingBox) targetMesh.geometry.computeBoundingBox()
+              targetMesh.geometry.boundingBox.getCenter(center)
+              targetMesh.updateMatrixWorld() // Force world matrix update for accurate tethering during rotation
+              targetMesh.localToWorld(center)
             }
 
             return (
               <ShelfFloatingMenu 
                 key={`menu-${activeShelfId}`}
                 shelfId={activeShelfId}
-                placement={placement}
+                placement={{ ...placement, mesh: targetMesh }}
                 onUpdate={onUpdateShelf}
                 onClose={() => onSelectShelf(null)}
                 anchorPosition={center}

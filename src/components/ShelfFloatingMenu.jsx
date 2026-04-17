@@ -9,10 +9,8 @@ export default function ShelfFloatingMenu({ shelfId, placement, onUpdate, onClos
   const containerRef = useRef()
   const dragOffset  = useRef({ x: 0, y: 0 })
   
-  if (!placement) return null
-
-  const { mesh, items } = placement
-  const shelfName = mesh.name 
+  const { mesh, items = [] } = placement || {}
+  const shelfName = mesh?.name 
     ? mesh.name.replace(/[ _]?(col|ind)(\b|$)/gi, '').replace(/_/g, ' ').toUpperCase() 
     : 'SELECTED SHELF'
 
