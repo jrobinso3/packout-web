@@ -63,14 +63,24 @@ export default function DropController({ draggedProduct, onDisplayDrop, activeSh
       const intersects = raycaster.intersectObjects(scene.children, true)
       if (intersects.length === 0) return null
 
-      // Visual indicator companions (isDropzoneVisual) sit directly in front
-      // of their collider and are transparent — skip them when looking for the
-      // first meaningful hit. Only a solid display surface (no dropzone flags)
-      // should count as an occluder.
+      // Check for product hits first to provide a "Bubble Up" selection
+      const productHit = intersects.find(h => h.object.userData?.isProduct)
+      if (productHit) {
+        const targetShelfId = productHit.object.userData.shelfId
+        let shelfMesh = null
+        scene.traverse(node => {
+          if (node.isMesh && node.userData?.isDropzone && node.name === targetShelfId) {
+            shelfMesh = node
+          }
+        })
+        if (shelfMesh) return shelfMesh
+      }
+
+      // Fallback: Standard dropzone collider selection
       const firstReal = intersects.find(h => !h.object.userData?.isDropzoneVisual)
       if (!firstReal || !firstReal.object.userData?.isDropzone) return null
 
-      // Filter hits to just dropzones for the "Best Fit" logic below
+      // Filter hits to just dropzones for the "Best Fit" logic
       const hits = intersects.filter(h => h.object.userData?.isDropzone)
       if (hits.length === 0) return null
       if (hits.length === 1) return hits[0].object

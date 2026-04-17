@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef } from 'react'
-import { Upload, Download, Layers, Box, ChevronDown, ChevronUp, ChevronRight, X, Search, PackageSearch, Palette } from 'lucide-react'
+import { Upload, Download, Layers, Box, ChevronDown, ChevronUp, ChevronRight, X, Search, PackageSearch, Palette, Edit3 } from 'lucide-react'
 import ProductThumbnail from './ProductThumbnail'
 import LazyThumbnail from './LazyThumbnail'
 import MaterialEditor from './MaterialEditor'
@@ -89,9 +89,9 @@ export default function Sidebar({
   displayLibrary,
   productLibrary = [],
   stagedProductIds = [],
-  onAddProduct,
-  onRemoveProduct,
   onToggleStaging,
+  onOpenEditor,
+  onUpdateProduct,
   onUpdateMaterialConfig
 }) {
   const stagedProducts = useMemo(() => 
@@ -113,13 +113,15 @@ export default function Sidebar({
     return (
       <div key={product.id} className="flex flex-col items-center gap-1 relative">
         <div
-          className={`bg-white/5 border border-glass-border rounded-xl p-2 cursor-grab active:cursor-grabbing hover:bg-white/10 transition-all w-full aspect-square ${draggedProduct?.id === product.id ? 'opacity-30' : ''}`}
+          className="bg-white/5 border border-glass-border rounded-xl p-2 cursor-grab active:cursor-grabbing hover:bg-white/10 transition-all w-full aspect-square"
           style={{ touchAction: 'none' }}
           draggable={!isTouchDevice}
+          onClick={() => {
+            if (product.isCustom) onOpenEditor(product)
+          }}
           onDragStart={(e) => {
             if (!isTouchDevice) {
               setDraggedProduct(product)
-              // Customize the drag image if needed, otherwise browser defaults work well
               e.dataTransfer.effectAllowed = 'copy'
             }
           }}
@@ -127,8 +129,7 @@ export default function Sidebar({
             if (!isTouchDevice) setDraggedProduct(null)
           }}
           onPointerDown={(e) => {
-            if (!isTouchDevice) return // Native DnD will handle this
-            
+            if (!isTouchDevice) return
             const startX = e.clientX
             const startY = e.clientY
             const handleMove = (emove) => {
@@ -145,24 +146,25 @@ export default function Sidebar({
         </div>
         <span className="text-[10px] font-semibold text-center leading-tight text-text-main truncate w-full px-1">{product.name?.replace(/\.glb$/i, '')}</span>
         
-        {isStaged ? (
-          <button
-            className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-accent/20 border border-accent/40 text-accent hover:bg-accent hover:text-white flex items-center justify-center transition-all shadow-lg"
-            onClick={() => onToggleStaging(product.id)}
-            title="Remove from Bin"
-          >
-            <X size={10} />
-          </button>
-        ) : (
-          product.isCustom && (
+        {isStaged && (
+          <div className="absolute -top-1 -right-1 flex gap-1 items-center">
+            {product.isCustom && (
+              <button
+                className="w-5 h-5 rounded-full bg-white/10 border border-white/20 text-white hover:bg-secondary hover:text-white flex items-center justify-center transition-all shadow-lg"
+                onClick={() => onOpenEditor(product)}
+                title="Edit Product"
+              >
+                <Edit3 size={8} />
+              </button>
+            )}
             <button
-              className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500/80 hover:bg-red-500 flex items-center justify-center text-white"
-              onClick={() => onRemoveProduct(product.id)}
-              title="Delete Permanently"
+              className="w-5 h-5 rounded-full bg-accent/20 border border-accent/40 text-accent hover:bg-accent hover:text-white flex items-center justify-center transition-all shadow-lg"
+              onClick={() => onToggleStaging(product.id)}
+              title="Remove from Bin"
             >
-              <X size={9} />
+              <X size={10} />
             </button>
-          )
+          </div>
         )}
       </div>
     )

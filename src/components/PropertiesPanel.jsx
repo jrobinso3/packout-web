@@ -74,10 +74,8 @@ export default function PropertiesPanel({ placements, unitPrices, unitCosts, onU
     return { rows, totalCount, totalValue, totalProfit }
   }, [placements, unitPrices, unitCosts])
 
-  if (!reportData || reportData.rows.length === 0) return null
-
   return (
-    <div className={`absolute bottom-4 right-4 ${minimized ? 'w-[480px] p-3 px-5' : 'w-[580px] p-5'} bg-glass-bg border border-glass-border backdrop-blur-lg rounded-2xl z-10 shadow-3xl animate-in fade-in slide-in-from-bottom-4 duration-500 transition-all duration-300`}>
+    <div className={`fixed bottom-4 right-4 ${minimized ? 'w-[480px] p-3 px-5' : 'w-[580px] p-5'} bg-glass-bg border border-glass-border backdrop-blur-xl rounded-3xl z-30 shadow-3xl animate-in fade-in slide-in-from-right-4 duration-700 transition-all duration-300`}>
       
       {/* Panel Branding & Controls */}
       <div className="flex items-center justify-between mb-3">
@@ -158,66 +156,78 @@ export default function PropertiesPanel({ placements, unitPrices, unitCosts, onU
                 </tr>
               </thead>
               <tbody>
-                {reportData.rows.map((row) => (
-                  <tr key={row.product.id} className="group transition-all hover:translate-x-0.5">
-                    {/* Qty */}
-                    <td className="px-1 py-2 bg-black/5 first:rounded-l-xl last:rounded-r-xl border-y border-l border-black/5 transition-colors group-hover:bg-black/10">
-                      <span className="text-xs font-black text-accent tabular-nums">{row.quantity}</span>
-                    </td>
-                    
-                    {/* Name */}
-                    <td className="px-2 py-2 bg-black/5 first:rounded-l-xl last:rounded-r-xl border-y border-black/5 group-hover:bg-black/10">
-                      <div className="flex flex-col">
-                        <span className="text-[11px] font-bold text-text-main truncate max-w-[100px]">{row.product.name?.replace(/\.glb$/i, '')}</span>
-                        <span className="text-[8px] text-text-dim uppercase tracking-tighter opacity-50">SKU-{row.product.id.slice(-4).toUpperCase()}</span>
-                      </div>
-                    </td>
-                    
-                    {/* List Price (Input) */}
-                    <td className="px-2 py-2 bg-black/5 first:rounded-l-xl last:rounded-r-xl border-y border-black/5 group-hover:bg-black/10">
-                      <div className="flex items-center gap-1 bg-white/60 rounded-lg px-2 py-1 border border-black/5 focus-within:border-accent/40 transition-colors max-w-[70px]">
-                        <span className="text-[10px] text-text-dim/60">$</span>
-                        <input 
-                          type="number"
-                          step="0.01"
-                          placeholder="0.00"
-                          value={unitPrices[row.product.id] || ''}
-                          onChange={(e) => onUnitPriceChange(row.product.id, parseFloat(e.target.value) || 0)}
-                          className="w-full bg-transparent text-[11px] font-bold text-text-main outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-text-main/20"
-                        />
-                      </div>
-                    </td>
+                {reportData.rows.length > 0 ? (
+                  reportData.rows.map((row) => (
+                    <tr key={row.product.id} className="group transition-all hover:translate-x-0.5">
+                      {/* Qty */}
+                      <td className="px-1 py-2 bg-black/5 first:rounded-l-xl last:rounded-r-xl border-y border-l border-black/5 transition-colors group-hover:bg-black/10">
+                        <span className="text-xs font-black text-accent tabular-nums">{row.quantity}</span>
+                      </td>
+                      
+                      {/* Name */}
+                      <td className="px-2 py-2 bg-black/5 first:rounded-l-xl last:rounded-r-xl border-y border-black/5 group-hover:bg-black/10">
+                        <div className="flex flex-col">
+                          <span className="text-[11px] font-bold text-text-main truncate max-w-[100px]">{row.product.name?.replace(/\.glb$/i, '')}</span>
+                          <span className="text-[8px] text-text-dim uppercase tracking-tighter opacity-50">SKU-{row.product.id.slice(-4).toUpperCase()}</span>
+                        </div>
+                      </td>
+                      
+                      {/* List Price (Input) */}
+                      <td className="px-2 py-2 bg-black/5 first:rounded-l-xl last:rounded-r-xl border-y border-black/5 group-hover:bg-black/10">
+                        <div className="flex items-center gap-1 bg-white/60 rounded-lg px-2 py-1 border border-black/5 focus-within:border-accent/40 transition-colors max-w-[70px]">
+                          <span className="text-[10px] text-text-dim/60">$</span>
+                          <input 
+                            type="number"
+                            step="0.01"
+                            placeholder="0.00"
+                            value={unitPrices[row.product.id] || ''}
+                            onChange={(e) => onUnitPriceChange(row.product.id, parseFloat(e.target.value) || 0)}
+                            className="w-full bg-transparent text-[11px] font-bold text-text-main outline-none placeholder:text-text-main/20"
+                          />
+                        </div>
+                      </td>
 
-                    {/* Unit Cost (Input) */}
-                    <td className="px-2 py-2 bg-black/5 first:rounded-l-xl last:rounded-r-xl border-y border-black/5 group-hover:bg-black/10">
-                      <div className="flex items-center gap-1 bg-white/60 rounded-lg px-2 py-1 border border-black/5 focus-within:border-secondary/40 transition-colors max-w-[70px]">
-                        <span className="text-[10px] text-text-dim/60">$</span>
-                        <input 
-                          type="number"
-                          step="0.01"
-                          placeholder="0.00"
-                          value={unitCosts[row.product.id] || ''}
-                          onChange={(e) => onUnitCostChange(row.product.id, parseFloat(e.target.value) || 0)}
-                          className="w-full bg-transparent text-[11px] font-bold text-text-main outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-text-dim/20"
-                        />
-                      </div>
-                    </td>
+                      {/* Unit Cost (Input) */}
+                      <td className="px-2 py-2 bg-black/5 first:rounded-l-xl last:rounded-r-xl border-y border-black/5 group-hover:bg-black/10">
+                        <div className="flex items-center gap-1 bg-white/60 rounded-lg px-2 py-1 border border-black/5 focus-within:border-secondary/40 transition-colors max-w-[70px]">
+                          <span className="text-[10px] text-text-dim/60">$</span>
+                          <input 
+                            type="number"
+                            step="0.01"
+                            placeholder="0.00"
+                            value={unitCosts[row.product.id] || ''}
+                            onChange={(e) => onUnitCostChange(row.product.id, parseFloat(e.target.value) || 0)}
+                            className="w-full bg-transparent text-[11px] font-bold text-text-main outline-none placeholder:text-text-dim/20"
+                          />
+                        </div>
+                      </td>
 
-                    {/* Profit */}
-                    <td className="px-2 py-2 bg-black/5 first:rounded-l-xl last:rounded-r-xl border-y border-black/5 group-hover:bg-black/10">
-                      <span className={`text-[11px] font-black tabular-nums ${row.profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                        ${row.profit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
-                    </td>
-                    
-                    {/* Total Price */}
-                    <td className="px-2 py-2 bg-black/5 first:rounded-l-xl last:rounded-r-xl border-y border-r border-black/5 group-hover:bg-black/10">
-                      <span className="text-[11px] font-black text-text-main tabular-nums">
-                        ${row.totalPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </span>
+                      {/* Profit */}
+                      <td className="px-2 py-2 bg-black/5 first:rounded-l-xl last:rounded-r-xl border-y border-black/5 group-hover:bg-black/10">
+                        <span className={`text-[11px] font-black tabular-nums ${row.profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                          ${row.profit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </td>
+                      
+                      {/* Total Price */}
+                      <td className="px-2 py-2 bg-black/5 first:rounded-l-xl last:rounded-r-xl border-y border-r border-black/5 group-hover:bg-black/10">
+                        <span className="text-[11px] font-black text-text-main tabular-nums">
+                          ${row.totalPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={6} className="py-12 text-center bg-black/5 rounded-2xl border border-dashed border-white/5">
+                        <div className="flex flex-col items-center gap-2 opacity-30">
+                          <Package size={24} className="text-accent mb-2" />
+                          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-text-dim">Awaiting Configuration</span>
+                          <span className="text-[9px] font-bold text-text-dim/60 italic">Drop products to generate analytics</span>
+                        </div>
                     </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>

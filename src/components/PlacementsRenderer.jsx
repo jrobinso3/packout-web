@@ -10,7 +10,7 @@ const sharedInvisibleMat = new THREE.MeshBasicMaterial({ visible: false })
  * Renders a batch of custom textured products.
  * Hooks are kept isolate to this component to avoid conditional hook violations.
  */
-function CustomProductBatch({ product, matrices }) {
+function CustomProductBatch({ product, matrices, shelfId }) {
   const meshRef = useRef()
   const [wi, hi, di] = product.dimensions
   const w = wi * 0.0254
@@ -41,7 +41,13 @@ function CustomProductBatch({ product, matrices }) {
   }, [matrices])
 
   return (
-    <instancedMesh ref={meshRef} args={[null, null, matrices.length]} castShadow receiveShadow>
+    <instancedMesh 
+      ref={meshRef} 
+      args={[null, null, matrices.length]} 
+      castShadow 
+      receiveShadow
+      userData={{ isProduct: true, shelfId }}
+    >
       <boxGeometry args={[w, h, d]} />
       {materials.map((mat, i) => (
         <primitive key={i} object={mat} attach={`material-${i}`} />
@@ -53,7 +59,7 @@ function CustomProductBatch({ product, matrices }) {
 /**
  * Renders a batch of standard demo shapes.
  */
-function StandardProductBatch({ product, matrices }) {
+function StandardProductBatch({ product, matrices, shelfId }) {
   const meshRef = useRef()
   const [wi, hi, di] = product.dimensions
   const w = wi * 0.0254
@@ -76,14 +82,20 @@ function StandardProductBatch({ product, matrices }) {
   if (!geometry)                       geometry = <boxGeometry      args={[w - 0.002, h - 0.002, d - 0.002]} />
 
   return (
-    <instancedMesh ref={meshRef} args={[null, null, matrices.length]} castShadow receiveShadow>
+    <instancedMesh 
+      ref={meshRef} 
+      args={[null, null, matrices.length]} 
+      castShadow 
+      receiveShadow
+      userData={{ isProduct: true, shelfId }}
+    >
       {geometry}
       <meshStandardMaterial color={product.color} roughness={0.8} metalness={0} />
     </instancedMesh>
   )
 }
 
-function ProductGroup({ dropzoneMesh, items = [], rotation = 0 }) {
+function ProductGroup({ dropzoneMesh, items = [], rotation = 0, shelfId }) {
   const groups = useMemo(() => {
     if (!items.length) return new Map()
     
@@ -182,9 +194,9 @@ function ProductGroup({ dropzoneMesh, items = [], rotation = 0 }) {
       {Array.from(groups.values()).map(({ product, matrices }) => (
         <Suspense key={product.id} fallback={null}>
           {(product.isCustom || product.textureUrl) ? (
-            <CustomProductBatch product={product} matrices={matrices} />
+            <CustomProductBatch product={product} matrices={matrices} shelfId={shelfId} />
           ) : (
-            <StandardProductBatch product={product} matrices={matrices} />
+            <StandardProductBatch product={product} matrices={matrices} shelfId={shelfId} />
           )}
         </Suspense>
       ))}
@@ -206,6 +218,7 @@ export default function PlacementsRenderer({ placements, rotation = 0, scene }) 
             dropzoneMesh={mesh}
             items={placement.items}
             rotation={rotation}
+            shelfId={shelfName}
           />
         )
       })}

@@ -21,13 +21,13 @@ function DimInput({ label, value, onChange }) {
   )
 }
 
-export default function CustomProductCreator({ onAdd }) {
-  const [previewUrl, setPreviewUrl] = useState(null)
+export default function CustomProductCreator({ onAdd, existingProduct, onUpdate, onCancel }) {
+  const [previewUrl, setPreviewUrl] = useState(existingProduct?.textureUrl || null)
   const [file, setFile] = useState(null)
-  const [name, setName]   = useState('')
-  const [width, setWidth]   = useState('')
-  const [height, setHeight] = useState('')
-  const [depth, setDepth]   = useState('')
+  const [name, setName]   = useState(existingProduct?.name || '')
+  const [width, setWidth]   = useState(existingProduct?.dimensions?.[0] || '')
+  const [height, setHeight] = useState(existingProduct?.dimensions?.[1] || '')
+  const [depth, setDepth]   = useState(existingProduct?.dimensions?.[2] || '')
   const fileRef = useRef()
 
   const handleFile = (e) => {
@@ -41,37 +41,39 @@ export default function CustomProductCreator({ onAdd }) {
   }
 
   const handleAdd = async () => {
-    if (!previewUrl || !width || !height) return
-
-    // File is stored in state so it survives the input being unmounted
-    if (!file) return
+    // Validation: Dimensions are always required. File is only required for new products.
+    if (!width || !height) return
+    if (!existingProduct && !file) return
 
     try {
-      // 2. Encode to Base64 for resilient transfer
-      const base64Data = await new Promise((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = () => resolve(reader.result)
-        reader.onerror = reject
-        reader.readAsDataURL(file)
-      })
+      let finalUrl = existingProduct?.textureUrl || previewUrl
 
-      // 3. Physical Upload via Persistence API
-      // We use endsWith check in middleware, so /api/upload-texture works
-      const res = await fetch(`${import.meta.env.BASE_URL}api/upload-texture`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fileName: file.name,
-          base64Data
+      // 1. If a new file was picked, perform a physical upload
+      if (file) {
+        // Encode to Base64 for resilient transfer
+        const base64Data = await new Promise((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = () => resolve(reader.result)
+          reader.onerror = reject
+          reader.readAsDataURL(file)
         })
-      })
 
-      if (!res.ok) throw new Error('Physical upload failed')
-      const { url } = await res.json()
+        // Physical Upload via Persistence API
+        const res = await fetch(`${import.meta.env.BASE_URL}api/upload-texture`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fileName: file.name,
+            base64Data
+          })
+        })
 
-      // 4. Register Product with permanent texture URL
-      onAdd({
-        id:         `custom-${Date.now()}`,
+        if (!res.ok) throw new Error('Physical upload failed')
+        const data = await res.json()
+        finalUrl = data.url
+      }
+
+      const productPayload = {
         name:       name || 'Custom',
         geometry:   'box',
         dimensions: [
@@ -79,22 +81,35 @@ export default function CustomProductCreator({ onAdd }) {
           parseFloat(height),
           parseFloat(depth || '0.5'),
         ],
-        textureUrl: url, 
+        textureUrl: finalUrl, 
         isCustom:   true,
-      })
+      }
 
-      // Reset form
-      if (previewUrl) URL.revokeObjectURL(previewUrl)
-      setPreviewUrl(null)
-      setFile(null)
-      setName('')
-      setWidth('')
-      setHeight('')
-      setDepth('')
+      if (existingProduct) {
+        onUpdate(existingProduct.id, productPayload)
+      } else {
+        onAdd({
+          id: `custom-${Date.now()}`,
+          ...productPayload
+        })
+      }
+
+      // Reset form (only if not editing, or always clear local preview pointers)
+      if (file && previewUrl && !existingProduct?.textureUrl) URL.revokeObjectURL(previewUrl)
+      
+      if (!existingProduct) {
+        setPreviewUrl(null)
+        setFile(null)
+        setName('')
+        setWidth('')
+        setHeight('')
+        setDepth('')
+      }
+      
       if (fileRef.current) fileRef.current.value = ''
     } catch (err) {
-      console.error('Upload Failed:', err)
-      alert(`Critical: Failed to persist product to global library. ${err.message}`)
+      console.error('Operation Failed:', err)
+      alert(`Critical: Action failed. ${err.message}`)
     }
   }
 
@@ -156,15 +171,26 @@ export default function CustomProductCreator({ onAdd }) {
         </div>
       </div>
 
-      {/* Add button with hover effect */}
-      <button
-        onClick={handleAdd}
-        disabled={!ready}
-        className="cp-add-btn group"
-      >
-        <Plus size={14} strokeWidth={3} className="group-hover:rotate-90 transition-transform" />
-        <span>Create Product</span>
-      </button>
+      {/* Actions */}
+      <div className="flex gap-2 w-full">
+        {onCancel && (
+          <button onClick={onCancel} className="cp-cancel-btn flex-1">
+            Cancel
+          </button>
+        )}
+        <button
+          onClick={handleAdd}
+          disabled={!ready}
+          className={`cp-add-btn group flex-[2] ${existingProduct ? 'bg-secondary' : 'bg-accent'}`}
+        >
+          {existingProduct ? (
+            <Plus size={14} className="rotate-45" />
+          ) : (
+            <Plus size={14} className="group-hover:rotate-90 transition-transform" />
+          )}
+          <span>{existingProduct ? 'Update Product' : 'Create Product'}</span>
+        </button>
+      </div>
     </div>
   )
 }

@@ -77,5 +77,17 @@
     ],
     "textureUrl": "products/unstoppables-paradise.png",
     "isCustom": true
+  },
+  {
+    "id": "custom-1776448199008",
+    "name": "unstoppables_no15",
+    "geometry": "box",
+    "dimensions": [
+      3.5,
+      9,
+      3.5
+    ],
+    "textureUrl": "products/unstoppables_no15.png",
+    "isCustom": true
   }
 ]
