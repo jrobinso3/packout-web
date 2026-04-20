@@ -76,6 +76,11 @@ function CameraAutoFit({ targetModel }) {
     )
     animating.current = true
 
+    // Interrupt animation if the user starts a manual interaction
+    const onStart = () => { animating.current = false }
+    controls.addEventListener('start', onStart)
+    return () => controls.removeEventListener('start', onStart)
+
   }, [targetModel, camera, controls])
 
   // Lerp camera position each frame until we are close enough to stop

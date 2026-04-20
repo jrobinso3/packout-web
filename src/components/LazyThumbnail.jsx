@@ -3,23 +3,28 @@ import ProductThumbnail from './ProductThumbnail'
 
 /**
  * LazyThumbnail
- * Optimization wrapper that only mounts the ProductThumbnail (and its WebGL Canvas)
- * when the item becomes visible in the viewport.
+ * Optimization wrapper that delays mounting ProductThumbnail until visible.
+ * 
+ * IMPORTANT: We do NOT unmount on scroll-out. We only mount once (on first 
+ * intersection). Unmounting was destroying in-progress generation work and 
+ * causing the "stuck on Generating" bug.
  */
-export default function LazyThumbnail({ product }) {
-  const [isVisible, setIsVisible] = useState(false)
+export default function LazyThumbnail({ product, onUpdate }) {
+  const [hasBeenVisible, setHasBeenVisible] = useState(false)
   const containerRef = useRef(null)
 
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
-        // We set isVisible to true when it enters, 
-        // and false when it leaves to FREE the WebGL context aggressively.
-        setIsVisible(entry.isIntersecting)
+        if (entry.isIntersecting) {
+          // Mount once, then keep mounted — never tear down
+          setHasBeenVisible(true)
+          observer.disconnect()
+        }
       },
       {
-        root: null, // use the viewport
-        rootMargin: '100px', // Pre-load slightly before it scrolls in
+        root: null,
+        rootMargin: '200px', // generous pre-load margin
         threshold: 0.01
       }
     )
@@ -28,23 +33,18 @@ export default function LazyThumbnail({ product }) {
       observer.observe(containerRef.current)
     }
 
-    return () => {
-      if (containerRef.current) {
-        observer.unobserve(containerRef.current)
-      }
-    }
+    return () => observer.disconnect()
   }, [])
 
   return (
-    <div 
-      ref={containerRef} 
+    <div
+      ref={containerRef}
       className="w-full h-full flex items-center justify-center relative overflow-hidden"
       style={{ minHeight: '100px' }}
     >
-      {isVisible ? (
-        <ProductThumbnail product={product} />
+      {hasBeenVisible ? (
+        <ProductThumbnail product={product} onUpdate={onUpdate} />
       ) : (
-        // Placeholder state while off-screen to prevent layout shift
         <div className="w-full h-full bg-white/5 animate-pulse rounded-lg" />
       )}
     </div>

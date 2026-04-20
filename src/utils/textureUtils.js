@@ -32,58 +32,221 @@ export function resolveAssetUrl(url) {
   return BASE + target
 }
 
+// Singleton renderer to avoid exhausting WebGL contexts
+let sharedRenderer = null
+function getSharedRenderer() {
+  if (!sharedRenderer) {
+    sharedRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+    sharedRenderer.outputColorSpace = THREE.SRGBColorSpace
+  }
+  return sharedRenderer
+}
+
 /**
  * Loads a GLB from a URL and renders a 512×512 thumbnail using an offscreen
  * WebGLRenderer. Returns a PNG data URL, or null if rendering fails.
  */
 export async function renderGlbThumbnail(glbUrl) {
+  if (!glbUrl) return null
   return new Promise((resolve) => {
-    new GLTFLoader().load(
-      resolveAssetUrl(glbUrl),
-      (gltf) => {
-        try {
-          const W = 512, H = 512
-          const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
-          renderer.setSize(W, H)
-          renderer.setPixelRatio(1)
-          renderer.outputColorSpace = THREE.SRGBColorSpace
+    let resolved = false
+    const timeout = setTimeout(() => {
+      if (!resolved) {
+        resolved = true
+        console.warn('GLB thumbnail render timed out:', glbUrl)
+        resolve(null)
+      }
+    }, 8000)
 
-          const scene = new THREE.Scene()
-          scene.add(new THREE.AmbientLight(0xffffff, 1.2))
-          const sun = new THREE.DirectionalLight(0xffffff, 2)
-          sun.position.set(1, 2, 2)
-          scene.add(sun)
-          scene.add(gltf.scene)
+    try {
+      new GLTFLoader().load(
+        resolveAssetUrl(glbUrl),
+        (gltf) => {
+          if (resolved) return
+          try {
+            const W = 512, H = 512
+            const renderer = getSharedRenderer()
+            renderer.setSize(W, H)
+            renderer.setPixelRatio(1)
 
-          const box    = new THREE.Box3().setFromObject(gltf.scene)
-          const size   = new THREE.Vector3()
-          const center = new THREE.Vector3()
-          box.getSize(size)
-          box.getCenter(center)
+            const scene = new THREE.Scene()
+            scene.add(new THREE.AmbientLight(0xffffff, 1.2))
+            const sun = new THREE.DirectionalLight(0xffffff, 2)
+            sun.position.set(1, 2, 2)
+            scene.add(sun)
+            scene.add(gltf.scene)
 
-          const radius = size.length() * 0.5
-          const camera = new THREE.PerspectiveCamera(45, W / H, radius * 0.01, radius * 100)
-          const dist   = radius / Math.sin((45 * Math.PI) / 180 / 2) * 1.1
-          camera.position.set(
-            center.x + dist * 0.6,
-            center.y + dist * 0.5,
-            center.z + dist * 0.8
-          )
-          camera.lookAt(center)
+            const box    = new THREE.Box3().setFromObject(gltf.scene)
+            const size   = new THREE.Vector3()
+            const center = new THREE.Vector3()
+            box.getSize(size)
+            box.getCenter(center)
 
-          renderer.render(scene, camera)
-          const dataUrl = renderer.domElement.toDataURL('image/png')
-          renderer.dispose()
-          resolve(dataUrl)
-        } catch (err) {
-          console.warn('GLB thumbnail render failed:', err)
-          resolve(null)
+            const radius = size.length() * 0.5
+            const camera = new THREE.PerspectiveCamera(45, W / H, radius * 0.01, radius * 100)
+            const dist   = radius / Math.sin((45 * Math.PI) / 180 / 2) * 1.1
+            camera.position.set(
+              center.x + dist * 0.6,
+              center.y + dist * 0.5,
+              center.z + dist * 0.8
+            )
+            camera.lookAt(center)
+
+            renderer.clear()
+            renderer.render(scene, camera)
+            const dataUrl = renderer.domElement.toDataURL('image/png')
+            
+            // Cleanup memory carefully
+            scene.clear()
+
+            resolved = true
+            clearTimeout(timeout)
+            resolve(dataUrl)
+          } catch (err) {
+            console.warn('GLB thumbnail render failed:', err)
+            resolved = true
+            clearTimeout(timeout)
+            resolve(null)
+          }
+        },
+        undefined,
+        (err) => { 
+          if (!resolved) {
+            resolved = true
+            clearTimeout(timeout)
+            console.warn('GLB load failed for thumbnail:', err)
+            resolve(null) 
+          }
         }
-      },
-      undefined,
-      (err) => { console.warn('GLB load failed for thumbnail:', err); resolve(null) }
-    )
+      )
+    } catch (e) {
+      if (!resolved) {
+        resolved = true
+        clearTimeout(timeout)
+        console.warn('Synchronous error loading GLB thumbnail:', e)
+        resolve(null)
+      }
+    }
   })
+}
+
+/**
+ * Global Queue for thumbnail generation to prevent WebGL context exhaustion.
+ */
+class ThumbnailQueue {
+  constructor() {
+    this.queue = []
+    this.running = false
+  }
+
+  async add(task) {
+    return new Promise((resolve, reject) => {
+      this.queue.push({ task, resolve, reject })
+      this.process()
+    })
+  }
+
+  async process() {
+    if (this.running || this.queue.length === 0) return
+    this.running = true
+    
+    const { task, resolve, reject } = this.queue.shift()
+    try {
+      // Force completion even if the task stalls internally
+      const result = await Promise.race([
+        task(),
+        new Promise((_, r) => setTimeout(() => r(new Error("Queue Task Timeout")), 8000))
+      ])
+      resolve(result)
+    } catch (err) {
+      console.warn('Queue task failed or timed out:', err)
+      resolve(null) // Resolve with null so caller can handle gracefully
+    } finally {
+      this.running = false
+      setTimeout(() => this.process(), 50)
+    }
+  }
+}
+
+const generatorQueue = new ThumbnailQueue()
+
+/**
+ * Enqueued version of GLB thumbnail rendering.
+ */
+export async function renderGlbThumbnailEnqueued(url) {
+  return generatorQueue.add(() => renderGlbThumbnail(url))
+}
+
+/**
+ * Enqueued version of procedural thumbnail rendering.
+ */
+export async function renderProceduralThumbnailEnqueued(product) {
+  return generatorQueue.add(() => renderProceduralThumbnail(product))
+}
+
+/**
+ * Renders a procedural geometry (box, sphere, etc.) to a thumbnail.
+ */
+export async function renderProceduralThumbnail(product) {
+  try {
+    const W = 512, H = 512
+    const renderer = getSharedRenderer()
+    renderer.setSize(W, H)
+    renderer.setPixelRatio(1)
+
+    const scene = new THREE.Scene()
+    scene.add(new THREE.AmbientLight(0xffffff, 1.2))
+    const sun = new THREE.DirectionalLight(0xffffff, 2)
+    sun.position.set(1, 2, 2)
+    scene.add(sun)
+
+    const [wi, hi, di] = product.dimensions || [4.7, 5.9, 4.7]
+    const w = wi * 0.0254
+    const h = hi * 0.0254
+    const d = di * 0.0254
+
+    let geometry
+    switch (product.geometry) {
+      case 'sphere':   geometry = new THREE.SphereGeometry(w/2, 32, 32); break
+      case 'cylinder': geometry = new THREE.CylinderGeometry(w/2, w/2, h, 32); break
+      case 'cone':     geometry = new THREE.ConeGeometry(w/2, h, 32); break
+      default:         geometry = new THREE.BoxGeometry(w, h, d)
+    }
+
+    const mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ 
+      color: product.color || '#ffffff',
+      roughness: 0.3,
+      metalness: 0.4
+    }))
+    mesh.rotation.y = -0.6
+    scene.add(mesh)
+
+    const box    = new THREE.Box3().setFromObject(mesh)
+    const size   = new THREE.Vector3()
+    const center = new THREE.Vector3()
+    box.getSize(size)
+    box.getCenter(center)
+
+    const radius = size.length() * 0.5
+    const camera = new THREE.PerspectiveCamera(45, W / H, radius * 0.01, radius * 100)
+    const dist   = radius / Math.sin((45 * Math.PI) / 180 / 2) * 1.5
+    camera.position.set(center.x + dist * 0.6, center.y + dist * 0.5, center.z + dist * 0.8)
+    camera.lookAt(center)
+
+    renderer.clear()
+    renderer.render(scene, camera)
+    const dataUrl = renderer.domElement.toDataURL('image/png')
+    
+    // Cleanup memory 
+    geometry.dispose()
+    mesh.material.dispose()
+    scene.clear()
+    
+    return dataUrl
+  } catch (err) {
+    console.warn('Procedural thumbnail render failed:', err)
+    return null
+  }
 }
 
 /**

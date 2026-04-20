@@ -97,10 +97,15 @@ export default function DropController({ draggedProduct, onDisplayDrop, activeSh
       const intersects = raycaster.intersectObjects(scene.children, true)
       if (intersects.length === 0) return null
 
-      // "Bubble Up": if the user clicks an already-placed product, select its shelf
-      const productHit = intersects.find(h => h.object.userData?.isProduct)
-      if (productHit) {
-        const targetShelfId = productHit.object.userData.shelfId
+      // Find the first "solid" thing hit. This is what blocks everything else.
+      // We ignore visual indicators (semi-transparent overlays) because you 
+      // should be able to click through the highlight glow.
+      const occluder = intersects.find(h => !h.object.userData?.isDropzoneVisual)
+      if (!occluder) return null
+
+      // 1. "Bubble Up": if the top-most solid thing is a product, select its shelf
+      if (occluder.object.userData?.isProduct) {
+        const targetShelfId = occluder.object.userData.shelfId
         let shelfMesh = null
         scene.traverse(node => {
           if (node.isMesh && node.userData?.isDropzone && node.name === targetShelfId) {
@@ -110,21 +115,27 @@ export default function DropController({ draggedProduct, onDisplayDrop, activeSh
         if (shelfMesh) return shelfMesh
       }
 
-      // Standard path: only consider invisible dropzone colliders
-      const firstReal = intersects.find(h => !h.object.userData?.isDropzoneVisual)
-      if (!firstReal || !firstReal.object.userData?.isDropzone) return null
+      // 2. Occlusion: if the top-most thing is NOT a dropzone (e.g. a front panel),
+      // then we can't reach the shelves behind it.
+      if (!occluder.object.userData?.isDropzone) return null
 
+      // 3. Best Fit: when multiple colliders overlap (e.g. nested shelf system),
+      // pick the one whose projected center is closest to the cursor.
+      // We filter the original intersects to get only dropzones that were also 
+      // close to the front.
       const hits = intersects.filter(h => h.object.userData?.isDropzone)
       if (hits.length === 0) return null
-      if (hits.length === 1) return hits[0].object
-
-      // "Best Fit": when multiple colliders overlap (e.g. nested shelf system),
-      // pick the one whose projected center is closest to the cursor.
+      
+      // If the top one is a dropzone, and there are others right behind it,
+      // we still use the "closest to screen center" logic to resolve ambiguity.
       let best = hits[0].object
       let bestDist = Infinity
       const worldCenter = new THREE.Vector3()
 
       for (const hit of hits) {
+        // Stop checking if we are significantly behind the occluder
+        if (hit.distance > occluder.distance + 0.1) break
+
         hit.object.geometry.computeBoundingBox()
         hit.object.geometry.boundingBox.getCenter(worldCenter)
         hit.object.localToWorld(worldCenter)

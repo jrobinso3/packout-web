@@ -330,7 +330,7 @@ function App() {
         facings: 1,
         stackVertical: false,
         spacing: 0,
-        autoFit: false
+        autoFit: true
       }
 
       newItems.push(newItem)
@@ -440,6 +440,30 @@ function App() {
       return [...prev, id]
     })
   }, [])
+
+  // ─── PRODUCT REMOVAL ────────────────────────────────────────────────────────
+  // Deletes a product from the library and sweeps it from all shelves and the bin.
+  const handleRemoveProduct = useCallback(async (id) => {
+    if (!window.confirm("Are you sure you want to delete this product? It will be removed from all shelves.")) return
+
+    // 1. Remove from the underlying library (IDB/JSON)
+    await removeProduct(id)
+
+    // 2. Clear from staging (Product Bin)
+    setStagedProductIds(prev => prev.filter(pid => pid !== id))
+
+    // 3. Sweep from all shelves
+    setPlacements(prev => {
+      const next = { ...prev }
+      Object.keys(next).forEach(shelfId => {
+        next[shelfId] = {
+          ...next[shelfId],
+          items: next[shelfId].items.filter(item => item.product?.id !== id)
+        }
+      })
+      return next
+    })
+  }, [removeProduct])
 
   // ─── LIVE PRODUCT SYNC ───────────────────────────────────────────────────────
   // When a product is edited (e.g. dimensions or texture replaced), all placed
@@ -593,7 +617,7 @@ function App() {
           products={products}
           onAddProduct={addProduct}
           onUpdateProduct={handleProductUpdated}
-          onRemoveProduct={removeProduct}
+          onRemoveProduct={handleRemoveProduct}
           onBatchImport={addProductsBatch}
           stagedProductIds={stagedProductIds}
           onToggleStaging={handleToggleStagedProduct}

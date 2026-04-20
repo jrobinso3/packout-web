@@ -352,7 +352,7 @@ export default function ProductGalleryModal({
                         className={`group flex flex-col gap-2 p-3 border rounded-2xl transition-all cursor-pointer active:scale-[0.98] ${isStaged ? 'bg-emerald-500/5 border-emerald-500/30' : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-accent/40'} ${draggedProductId === product.id ? 'opacity-30' : ''}`}
                       >
                         <div className="aspect-square bg-black/40 rounded-xl overflow-hidden relative shadow-inner flex items-center justify-center">
-                          <ProductThumbnail product={product} />
+                          <ProductThumbnail product={product} onUpdate={onUpdateProduct} />
                           
 
 
@@ -365,12 +365,16 @@ export default function ProductGalleryModal({
                           >
                             <CheckCircle2 size={16} />
                           </div>
-                          {product.isCustom && (
-                            <div className="absolute top-10 right-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-all z-10">
-                              <button onClick={(e) => { e.stopPropagation(); onOpenEditor(product) }} className="w-7 h-7 rounded-lg bg-secondary text-white flex items-center justify-center hover:bg-secondary/80"><Edit3 size={14} /></button>
-                              <button onClick={(e) => { e.stopPropagation(); onRemoveProduct(product.id) }} className="w-7 h-7 rounded-lg bg-red-500/80 text-white flex items-center justify-center hover:bg-red-500"><Trash2 size={14} /></button>
-                            </div>
-                          )}
+                          <div className="absolute top-10 right-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-all z-10">
+                            <button onClick={(e) => { e.stopPropagation(); onOpenEditor(product) }} className="w-7 h-7 rounded-lg bg-secondary text-white flex items-center justify-center hover:bg-secondary/80" title="Edit Properties"><Edit3 size={14} /></button>
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); onRemoveProduct(product.id) }} 
+                              className="w-7 h-7 rounded-lg bg-red-500/80 text-white flex items-center justify-center hover:bg-red-500"
+                              title="Delete Product"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
                           {!isStaged && <div className="absolute inset-0 bg-accent/20 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center backdrop-blur-[2px]"><Plus size={24} className="text-white" /></div>}
                         </div>
                         <div className="px-1 text-left">

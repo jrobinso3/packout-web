@@ -142,7 +142,7 @@ export default function Sidebar({
             window.addEventListener('pointerup', () => window.removeEventListener('pointermove', handleMove), { once: true })
           }}
         >
-          <LazyThumbnail product={product} />
+          <LazyThumbnail product={product} onUpdate={onUpdateProduct} />
         </div>
         <span className="text-[10px] font-semibold text-center leading-tight text-text-main truncate w-full px-1">{product.name?.replace(/\.glb$/i, '')}</span>
         
