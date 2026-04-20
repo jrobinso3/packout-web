@@ -1,7 +1,61 @@
 import { useState, useRef } from 'react'
 import { ImagePlus, Plus, X, Box } from 'lucide-react'
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
+import * as THREE from 'three'
+import { renderGlbThumbnail } from '../utils/textureUtils'
 
 const INCH_TO_M = 0.0254
+
+// Heuristic: infer the source unit from the largest bounding-box dimension.
+// Consumer products are typically 1–36 inches. We pick whichever unit maps the
+// largest axis into that range most cleanly.
+//   mm  → max typically 25–900
+//   cm  → max typically 2.5–90
+//   in  → max typically 1–36
+//   m   → max typically 0.025–0.9
+function detectGlbUnit(size) {
+  const maxDim = Math.max(size.x, size.y, size.z)
+  if (maxDim > 50)   return 'mm'
+  if (maxDim > 5)    return 'cm'
+  if (maxDim > 0.3)  return 'in'
+  return 'm'
+}
+
+const UNIT_TO_INCHES = { mm: 1 / 25.4, cm: 1 / 2.54, in: 1, m: 1 / INCH_TO_M }
+
+// Loads a GLB file, returns { size: Vector3, thumbnail: dataURL }.
+// Size is read via a lightweight GLTFLoader parse; thumbnail is delegated to
+// the shared renderGlbThumbnail utility so the logic lives in one place.
+async function readGlbInfo(file) {
+  const blobUrl = URL.createObjectURL(file)
+
+  const size = await new Promise((resolve, reject) => {
+    new GLTFLoader().load(
+      blobUrl,
+      (gltf) => {
+        const s = new THREE.Vector3()
+        new THREE.Box3().setFromObject(gltf.scene).getSize(s)
+        resolve(s)
+      },
+      undefined,
+      reject
+    )
+  })
+
+  const thumbnail = await renderGlbThumbnail(blobUrl)
+  URL.revokeObjectURL(blobUrl)
+
+  return { size, thumbnail }
+}
+
+function sizeToInches(size, unit) {
+  const factor = UNIT_TO_INCHES[unit]
+  return {
+    width:  parseFloat((size.x * factor).toFixed(2)),
+    height: parseFloat((size.y * factor).toFixed(2)),
+    depth:  parseFloat((size.z * factor).toFixed(2)),
+  }
+}
 
 // Small numeric field used for W / H / D inputs
 function DimInput({ label, value, onChange }) {
@@ -29,20 +83,48 @@ export default function CustomProductCreator({ onAdd, existingProduct, onUpdate,
   const [width, setWidth]   = useState(existingProduct?.dimensions?.[0] || '')
   const [height, setHeight] = useState(existingProduct?.dimensions?.[1] || '')
   const [depth, setDepth]   = useState(existingProduct?.dimensions?.[2] || '')
+  const [glbUnit, setGlbUnit] = useState('auto')
+  const [rawGlbSize, setRawGlbSize] = useState(null)
+  const [glbThumb, setGlbThumb] = useState(null)
   const fileRef = useRef()
 
-  const handleFile = (e) => {
+  const applyUnit = (size, unit) => {
+    const resolved = unit === 'auto' ? detectGlbUnit(size) : unit
+    const dims = sizeToInches(size, resolved)
+    setWidth(String(dims.width))
+    setHeight(String(dims.height))
+    setDepth(String(dims.depth))
+  }
+
+  const handleFile = async (e) => {
     const picked = e.target.files?.[0]
     if (!picked) return
     if (previewUrl && !existingProduct) URL.revokeObjectURL(previewUrl)
-    
+
     const isGlb = picked.name.toLowerCase().endsWith('.glb')
     setProductType(isGlb ? '3D' : '2D')
-    
+
     const url = URL.createObjectURL(picked)
     setPreviewUrl(url)
     setFile(picked)
     setName(picked.name.replace(/\.[^.]+$/, ''))
+
+    if (isGlb) {
+      try {
+        const { size, thumbnail } = await readGlbInfo(picked)
+        setRawGlbSize(size)
+        setGlbThumb(thumbnail)
+        setGlbUnit('auto')
+        applyUnit(size, 'auto')
+      } catch (err) {
+        console.warn('Could not read GLB dimensions:', err)
+      }
+    }
+  }
+
+  const handleUnitChange = (unit) => {
+    setGlbUnit(unit)
+    if (rawGlbSize) applyUnit(rawGlbSize, unit)
   }
 
   const handleAdd = async () => {
@@ -74,9 +156,16 @@ export default function CustomProductCreator({ onAdd, existingProduct, onUpdate,
           })
         })
 
-        if (!res.ok) throw new Error(`Physical upload failed: ${endpoint}`)
-        const data = await res.json()
-        finalUrl = data.url
+        if (res.ok) {
+          const data = await res.json()
+          finalUrl = data.url
+        } else {
+          // API unavailable or file already exists on disk — fall back to the
+          // public path so pre-copied files in /public work without re-uploading.
+          finalUrl = productType === '3D'
+            ? `products/3D/${file.name}`
+            : `products/${file.name}`
+        }
       }
 
       const productPayload = {
@@ -88,9 +177,10 @@ export default function CustomProductCreator({ onAdd, existingProduct, onUpdate,
           parseFloat(height),
           parseFloat(depth || '0.5'),
         ],
-        textureUrl: productType === '2D' ? finalUrl : null,
-        glbUrl:     productType === '3D' ? finalUrl : null,
-        isCustom:   true,
+        textureUrl:   productType === '2D' ? finalUrl : null,
+        glbUrl:       productType === '3D' ? finalUrl : null,
+        thumbnailUrl: productType === '3D' ? glbThumb : null,
+        isCustom:     true,
       }
 
       if (existingProduct) {
@@ -130,6 +220,9 @@ export default function CustomProductCreator({ onAdd, existingProduct, onUpdate,
     setWidth('')
     setHeight('')
     setDepth('')
+    setRawGlbSize(null)
+    setGlbThumb(null)
+    setGlbUnit('auto')
     if (fileRef.current) fileRef.current.value = ''
   }
 
@@ -142,10 +235,12 @@ export default function CustomProductCreator({ onAdd, existingProduct, onUpdate,
       {previewUrl ? (
         <div className="cp-preview-wrap shadow-inner border-black/5">
           {productType === '3D' ? (
-            <div className="w-full h-full flex flex-col items-center justify-center bg-black/5 text-accent">
-              <Box size={40} className="mb-2" />
-              <span className="text-[8px] font-black uppercase tracking-widest opacity-60">3D GLB Asset</span>
-            </div>
+            glbThumb
+              ? <img src={glbThumb} className="cp-preview-img" alt="3D preview" />
+              : <div className="w-full h-full flex flex-col items-center justify-center bg-black/5 text-accent">
+                  <Box size={40} className="mb-2" />
+                  <span className="text-[8px] font-black uppercase tracking-widest opacity-60">3D GLB Asset</span>
+                </div>
           ) : (
             <img src={previewUrl} className="cp-preview-img" alt="preview" />
           )}
@@ -182,6 +277,23 @@ export default function CustomProductCreator({ onAdd, existingProduct, onUpdate,
             placeholder="e.g. Cereal Box"
           />
         </div>
+
+        {productType === '3D' && rawGlbSize && (
+          <div className="flex flex-col gap-1">
+            <label className="text-[9px] font-black uppercase tracking-[0.2em] text-text-dim">Source Unit</label>
+            <select
+              value={glbUnit}
+              onChange={(e) => handleUnitChange(e.target.value)}
+              className="cp-dim-input"
+            >
+              <option value="auto">Auto-detect</option>
+              <option value="mm">Millimeters (mm)</option>
+              <option value="cm">Centimeters (cm)</option>
+              <option value="in">Inches (in)</option>
+              <option value="m">Meters (m)</option>
+            </select>
+          </div>
+        )}
 
         <div className="grid grid-cols-3 gap-2">
           <DimInput label="Width" value={width}  onChange={setWidth} />

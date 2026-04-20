@@ -1,46 +1,60 @@
+// ─── excelParser.js ───────────────────────────────────────────────────────────
+// Utilities for the batch product import workflow.
+//
+//   parseProductExcel      — parse an .xlsx/.xls file into product stubs
+//   matchImagesToProducts  — fuzzy-match uploaded image files to product stubs
+//   fileToBase64           — encode a File to a Base64 data URL for IDB storage
+//   downloadProductTemplate — generate and download a starter Excel template
+//
+// Column name mapping is intentionally permissive so the importer accepts
+// files from common retail/POS systems without requiring reformatting.
+// ──────────────────────────────────────────────────────────────────────────────
+
 import * as XLSX from 'xlsx'
 
-const MM_TO_INCH = 1 / 25.4
+const MM_TO_INCH = 1 / 25.4 // Conversion factor for millimetre inputs
 
-/**
- * Utility to parse Product Excel files
- * Supports automated creation of product libraries from spreadsheet data
- */
+// ─── parseProductExcel ────────────────────────────────────────────────────────
+// Reads the first sheet of an Excel workbook and maps rows to product stubs.
+// Supports flexible column naming (e.g. "Width", "W", "Width (in)", "Width_In")
+// and automatic unit conversion when the UOM column contains "mm".
 export async function parseProductExcel(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
-    
+
     reader.onload = (e) => {
       try {
         const data = new Uint8Array(e.target.result)
         const workbook = XLSX.read(data, { type: 'array' })
-        
-        // Use the first sheet
+
+        // Always use the first sheet
         const sheetName = workbook.SheetNames[0]
         const worksheet = workbook.Sheets[sheetName]
-        
-        // Convert to JSON
+
         const rows = XLSX.utils.sheet_to_json(worksheet)
-        
-        // Map rows to our product staging format
+
         const products = rows.map((row, index) => {
-          // Normalize headers: expand to support common industry variants
-          const name     = row.Name      || row.Product    || row.Title || row['Product Name'] || row['Item Name'] || row.SKU || `Product-${index + 1}`
-          const wIn      = parseFloat(row.Width_In  || row.Width  || row.W || row['Width (in)'] || 0)
-          const hIn      = parseFloat(row.Height_In || row.Height || row.H || row['Height (in)'] || 0)
-          const dIn      = parseFloat(row.Depth_In  || row.Depth  || row.D || row['Depth (in)'] || 0)
-          const uStr     = String(row.Units || row.UOM || 'in').toLowerCase()
+          // ── Column normalisation: try multiple common header names ──────────
+          const name  = row.Name      || row.Product    || row.Title
+                      || row['Product Name'] || row['Item Name'] || row.SKU
+                      || `Product-${index + 1}`
+
+          const wIn   = parseFloat(row.Width_In  || row.Width  || row.W || row['Width (in)']  || 0)
+          const hIn   = parseFloat(row.Height_In || row.Height || row.H || row['Height (in)'] || 0)
+          const dIn   = parseFloat(row.Depth_In  || row.Depth  || row.D || row['Depth (in)']  || 0)
+
+          // UOM column: treat anything other than "mm" as inches
+          const uStr  = String(row.Units || row.UOM || 'in').toLowerCase()
+
           const color    = row.Color || row.Hex || row.Hexcode || '#ffffff'
           const category = row.Category || row.Tag || row.Type || row.Folder || 'Imported'
-          
-          // Image Hint: allow the spreadsheet to explicitly link to a filename
+
+          // Optional explicit image filename hint (overrides fuzzy matching)
           const imageHint = row.Image || row.Texture || row.Artwork || row['Image Name'] || null
-          
-          // The application stores dimensions in INCHES. 
-          // If the spreadsheet provides MM, we convert to inches. 
-          // If it provides inches, we use it as-is.
+
+          // Convert dimensions to inches if the spreadsheet uses millimetres
           const multiplier = uStr === 'mm' ? MM_TO_INCH : 1
-          
+
           return {
             id: `imported-${Date.now()}-${index}`,
             name: String(name).trim(),
@@ -50,90 +64,91 @@ export async function parseProductExcel(file) {
               hIn * multiplier,
               dIn * multiplier
             ],
+            // Normalise hex colour: ensure leading '#'
             color: String(color).startsWith('#') ? color : `#${color}`,
             category: String(category),
             imageHint: imageHint ? String(imageHint).trim() : null,
             isCustom: true,
             textureUrl: null,
-            isReady: false 
+            isReady: false // Will be set to true once an image is matched
           }
         })
-        
+
         resolve(products)
       } catch (err) {
         reject(new Error('Failed to parse Excel file. Ensure it is a valid .xlsx or .xls file.'))
       }
     }
-    
+
     reader.onerror = () => reject(new Error('File reading error.'))
     reader.readAsArrayBuffer(file)
   })
 }
 
-/**
- * Helper to match images to pending product stubs.
- * Uses a tiered priority strategy to ensure the best matches are found first:
- * 1. Explicit Image Hint Match
- * 2. Exact Title Match
- * 3. Fuzzy Substring Matching (restricted to unclaimed images only)
- */
+// ─── matchImagesToProducts ────────────────────────────────────────────────────
+// Two-pass fuzzy matcher that links uploaded image Files to product stubs.
+//
+// Pass 1 — Exact / Explicit matches (high confidence):
+//   a. Explicit hint: the spreadsheet's Image column matches the filename exactly
+//   b. Exact title:   the product name matches the filename exactly (ignoring ext)
+//   Matched images are added to a `matchedFiles` set to prevent reuse.
+//
+// Pass 2 — Substring / Fuzzy matches (low confidence):
+//   Only runs on images that were NOT claimed in Pass 1, and only on products
+//   that still lack an image. Prevents a fuzzy match from "stealing" an image
+//   that belongs to a different product with a similar name.
 export function matchImagesToProducts(pendingProducts, files) {
-  // Create deep copy to ensure React state updates correctly
+  // Deep copy so React detects the state change correctly
   const updated = pendingProducts.map(p => ({ ...p }))
-  const matchedFiles = new Set()
+  const matchedFiles = new Set() // Tracks filenames already assigned
 
-  const normalize = (str) => 
-    String(str)
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9]/g, '')
+  // Normalise strings for comparison: lowercase, strip non-alphanumeric
+  const normalize = (str) =>
+    String(str).toLowerCase().trim().replace(/[^a-z0-9]/g, '')
 
-  // Pass 1: Handle Explicit Hints and Exact Matches
+  // ── Pass 1: Explicit hints and exact title matches ─────────────────────────
   files.forEach(file => {
-    const rawFileName = file.name.replace(/\.[^.]+$/, '')
+    const rawFileName  = file.name.replace(/\.[^.]+$/, '') // Strip extension
     const cleanFileName = normalize(rawFileName)
     if (!cleanFileName) return
 
     updated.forEach(prod => {
-      // Check for explicit filename hint
       const explicitMatch = prod.imageHint && (
-        prod.imageHint.toLowerCase() === file.name.toLowerCase() || 
+        prod.imageHint.toLowerCase() === file.name.toLowerCase() ||
         normalize(prod.imageHint) === cleanFileName
       )
 
       const exactTitleMatch = normalize(prod.name) === cleanFileName
 
       if (explicitMatch || exactTitleMatch) {
-         if (prod.textureUrl) URL.revokeObjectURL(prod.textureUrl)
-         prod.textureUrl = URL.createObjectURL(file)
-         prod.rawFile = file 
-         prod.isReady = true
-         matchedFiles.add(file.name)
+        if (prod.textureUrl) URL.revokeObjectURL(prod.textureUrl)
+        prod.textureUrl = URL.createObjectURL(file)
+        prod.rawFile    = file
+        prod.isReady    = true
+        matchedFiles.add(file.name) // Mark as claimed
       }
     })
   })
 
-  // Pass 2: Fuzzy/Substring matches for remaining unready items
+  // ── Pass 2: Substring fuzzy matching on unclaimed images ───────────────────
   files.forEach(file => {
-    // IMPORTANT: If an image was already matched exactly in Pass 1, 
-    // do not use it for fuzzy/substring guessing. This "claims" the image
-    // for its proper owner and prevents fuzzy false-positives.
-    if (matchedFiles.has(file.name)) return 
+    // Skip images already claimed in Pass 1
+    if (matchedFiles.has(file.name)) return
 
     const cleanFileName = normalize(file.name.replace(/\.[^.]+$/, ''))
-    if (cleanFileName.length < 3) return 
+    if (cleanFileName.length < 3) return // Too short to match reliably
 
     updated.forEach(prod => {
-      // Only fuzzy match products that still lack an image
-      if (prod.isReady) return
-      
+      if (prod.isReady) return // Skip products that already have an image
+
       const prodName = normalize(prod.name)
       if (prodName.length < 3) return
 
+      // Match if either string contains the other as a substring
       if (prodName.includes(cleanFileName) || cleanFileName.includes(prodName)) {
         prod.textureUrl = URL.createObjectURL(file)
-        prod.rawFile = file 
-        prod.isReady = true
+        prod.rawFile    = file
+        prod.isReady    = true
         matchedFiles.add(file.name)
       }
     })
@@ -142,32 +157,33 @@ export function matchImagesToProducts(pendingProducts, files) {
   return { updated, matchedFiles: Array.from(matchedFiles) }
 }
 
-/**
- * Convert a File to Base64 for permanent IndexedDB storage
- */
+// ─── fileToBase64 ─────────────────────────────────────────────────────────────
+// Converts a File to a Base64-encoded data URL string.
+// Used before persisting texture files to IDB so they survive page reloads
+// (object URLs created by URL.createObjectURL are session-scoped).
 export async function fileToBase64(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
-    reader.onload = () => resolve(reader.result)
+    reader.onload  = () => resolve(reader.result) // Returns "data:<mime>;base64,<data>"
     reader.onerror = error => reject(error)
     reader.readAsDataURL(file)
   })
 }
 
-/**
- * Generate and download a starter Excel template
- */
+// ─── downloadProductTemplate ──────────────────────────────────────────────────
+// Generates a pre-populated Excel template and triggers a browser download.
+// Provides a concrete example row so users understand the expected column format.
 export function downloadProductTemplate() {
   const headers = [
     ['Name', 'Width_In', 'Height_In', 'Depth_In', 'Units', 'Color', 'Category', 'Image'],
     ['Sample Product A', '4.5', '10', '4.5', 'in', '#ff0000', 'Beverage', 'apple_juice.png'],
-    ['Sample Product B', '3', '6', '3', 'in', '#00ff00', 'Snacks', 'chips_bag.jpg'],
+    ['Sample Product B', '3',   '6',  '3',   'in', '#00ff00', 'Snacks',   'chips_bag.jpg'],
   ]
 
   const worksheet = XLSX.utils.aoa_to_sheet(headers)
-  const workbook = XLSX.utils.book_new()
+  const workbook  = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Product Template')
 
-  // Generate binary and trigger download
+  // XLSX.writeFile triggers the browser download directly
   XLSX.writeFile(workbook, 'packout_template.xlsx')
 }

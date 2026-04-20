@@ -1,9 +1,12 @@
+// ─── App.jsx ──────────────────────────────────────────────────────────────────
+// Root component. Owns all shared application state and acts as the "conductor":
+// it connects the 3D canvas, sidebar, modals, and persistence engine together
+// through callback chains. No rendering logic lives here — all visual output
+// is delegated to child components.
+// ──────────────────────────────────────────────────────────────────────────────
+
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
-import { 
-  Package, Layout, Grid, Settings, 
-  ChevronRight, Box, Layers, Play,
-  Plus, X, Settings2
-} from 'lucide-react'
+import { X } from 'lucide-react'
 import * as THREE from 'three'
 import ConfiguratorCanvas from './ConfiguratorCanvas'
 import Sidebar from './components/Sidebar'
@@ -17,67 +20,125 @@ import { useProductLibrary } from './hooks/useProductLibrary'
 import { getSession, saveSession } from './utils/idbUtility'
 
 function App() {
+  // ─── Core Display State ─────────────────────────────────────────────────────
+  // Default display is the Floorstand_3S fixture. BASE_URL is set by Vite to
+  // '/packout-web/' for GitHub Pages deployment (see vite.config.js).
   const [displayUrl, setDisplayUrl] = useState(`${import.meta.env.BASE_URL}displays/corrugate_displays/Floorstand_3S.glb`)
+
+  // The product currently being dragged from the sidebar toward the 3D canvas.
+  // Cleared by App once the pointer lifts (pointerup).
   const [draggedProduct, setDraggedProduct] = useState(null)
+
+  // Modal visibility flags
   const [isSelectorOpen, setIsSelectorOpen] = useState(false)
-  const [isLibraryOpen, setIsLibraryOpen]  = useState(false)
+
+  // Products whose checkboxes are ticked in the Product Bin (sidebar).
+  // These IDs control which products appear as draggable tiles.
   const [stagedProductIds, setStagedProductIds] = useState([])
+
+  // The manifest.json catalogue of all GLB fixture files in public/displays/.
+  // Generated automatically by the Vite syncGalleryPlugin on dev-server start.
   const [displayLibrary, setDisplayLibrary] = useState([])
+
+  // Guard flag: don't write to IDB until the initial read ("hydration") is done,
+  // otherwise we would overwrite saved state with empty defaults.
   const [isHydrated, setIsHydrated] = useState(false)
+
+  // Full-screen product gallery modal
   const [showGallery, setShowGallery] = useState(false)
+
+  // The product currently open in the "Refine Asset" / CustomProductCreator modal
   const [editingProduct, setEditingProduct] = useState(null)
+
+  // Reference to the loaded Three.js scene object (set by DisplayModel via onLoaded).
+  // Passed to PropertiesPanel so it can re-bind shelf meshes after IDB hydration.
   const [displayModel, setDisplayModel] = useState(null)
-  
+
   const handleOpenEditor = (product) => {
     setEditingProduct(product)
   }
-  
-  const { 
-    products, 
-    addProduct, 
-    addProductsBatch, 
-    updateProduct, 
-    removeProduct 
+
+  // ─── Product Library Hook ───────────────────────────────────────────────────
+  // Provides CRUD for the product catalogue. Reads from products.json + IndexedDB,
+  // and writes back via the Vite middleware API.
+  const {
+    products,
+    addProduct,
+    addProductsBatch,
+    updateProduct,
+    removeProduct
   } = useProductLibrary()
-  
+
+  // ─── Display Library Fetch ──────────────────────────────────────────────────
+  // The manifest is generated at build/dev-start time by syncGalleryPlugin.
+  // We load it once on mount to populate the DisplaySelectorModal grid.
   useEffect(() => {
     fetch(`${import.meta.env.BASE_URL}displays/manifest.json`)
       .then(res => res.json())
       .then(data => setDisplayLibrary(data))
       .catch(err => console.error('Error loading manifest:', err))
   }, [])
-  
-  // Track placements as { [uuid]: { mesh, items: [] } }
-  // Each item: { id, product, facings, stackVertical, spacing }
+
+  // ─── Placement State ────────────────────────────────────────────────────────
+  // Shape: { [meshName]: { items: PlacementItem[] } }
+  // Key = stable GLB mesh name (NOT a transient UUID). Using the mesh name as
+  // the key allows the placement to survive model reloads and IDB round-trips.
+  //
+  // Each PlacementItem: { id, product, facings, stackVertical, spacing, autoFit }
   const [placements, setPlacements] = useState({})
+
+  // The mesh name of the currently selected shelf (drives ShelfFloatingMenu).
   const [activeShelfId, setActiveShelfId] = useState(null)
+
+  // Per-product pricing for the profitability report in PropertiesPanel.
   const [unitPrices, setUnitPrices] = useState({})
   const [unitCosts, setUnitCosts] = useState({})
-  
+
+  // The mesh group name of the currently selected display part (drives MaterialFloatingMenu).
   const [activePartId, setActivePartId] = useState(null)
+
+  // All material groups discovered by DisplayModel during its useLayoutEffect setup.
+  // Shape: { groupName, label, materials: [{ uuid, name, material }] }[]
   const [displayMaterials, setDisplayMaterials] = useState([])
-  const [materialConfigs, setMaterialConfigs] = useState({}) // Stores POJO overrides: { groupName: { matUuid: { color, mix } } }
+
+  // Lightweight POJO overrides stored alongside IDB session.
+  // Shape: { [groupName]: { [matUuid]: { color, roughness, artworkMix } } }
+  // Materials themselves are NOT stored — only the override values are, so
+  // we can re-apply them whenever a new material instance is created.
+  const [materialConfigs, setMaterialConfigs] = useState({})
+
+  // Y-axis rotation of the entire display fixture (degrees, 0-360).
   const [displayRotation, setDisplayRotation] = useState(0)
+
+  // Refs holding the export callbacks registered by ConfiguratorCanvas.
+  // Using refs (not state) so that App doesn't re-render when they are set.
   const exportFnRef = useRef(null)
   const exportARFnRef = useRef(null)
 
-  // AR Management State
+  // ─── AR Export State ────────────────────────────────────────────────────────
+  // Two-phase AR flow:
+  //   Phase 1 — 'generating': USDZExporter runs async; spinner is shown.
+  //   Phase 2 — 'ready': USDZ blob URL is available; user can launch native AR.
   const [arStatus, setArStatus] = useState('idle') // 'idle' | 'generating' | 'ready'
   const [arUrl, setArUrl] = useState(null)
 
-  // Detect iOS/iPad support
+  // Detect iOS/iPad once. Only iOS supports AR Quick Look natively.
   const isIOSPlatform = useMemo(() => isIOS(), [])
-  
+
   // ─── TOUCH/POINTER DRAG STATE ──────────────────────────────────────────────
+  // On touch devices there is no native drag-over event visible to the 3D canvas.
+  // We track pointer position globally and show a floating visual clone of the
+  // dragged product so the user has feedback as they move their finger.
   const isTouchDevice = useMemo(() => window.matchMedia("(pointer: coarse)").matches, [])
-  const [dragPosition, setDragPosition] = useState(null) // { x, y }
-  
-  // Global pointer move listener for virtual drag preview (TOUCH ONLY)
+  const [dragPosition, setDragPosition] = useState(null) // { x, y } in viewport pixels
+
+  // Attach global listeners ONLY while a product is being dragged on touch.
+  // The listeners are torn down on pointerup or when draggedProduct clears.
   useEffect(() => {
     if (!draggedProduct || !isTouchDevice) return
     const handlePointerMove = (e) => setDragPosition({ x: e.clientX, y: e.clientY })
     const handlePointerUp   = () => { setDraggedProduct(null); setDragPosition(null) }
-    
+
     window.addEventListener('pointermove', handlePointerMove)
     window.addEventListener('pointerup',   handlePointerUp)
     return () => {
@@ -85,7 +146,9 @@ function App() {
       window.removeEventListener('pointerup',   handlePointerUp)
     }
   }, [draggedProduct])
-  
+
+  // ─── PROFITABILITY HANDLERS ─────────────────────────────────────────────────
+  // Simple keyed maps: { [productId]: number }. Passed straight to PropertiesPanel.
   const handleUnitPriceChange = useCallback((productId, price) => {
     setUnitPrices(prev => ({ ...prev, [productId]: price }))
   }, [])
@@ -94,16 +157,20 @@ function App() {
     setUnitCosts(prev => ({ ...prev, [productId]: cost }))
   }, [])
 
+  // ─── EXPORT CALLBACKS ───────────────────────────────────────────────────────
+  // ConfiguratorCanvas registers a PNG-export closure via onExportReady.
+  // App stores it in a ref and triggers it on button click.
   const handleExportReady = useCallback((fn) => { exportFnRef.current = fn }, [])
   const handleExport = useCallback(() => { exportFnRef.current?.() }, [])
 
+  // ConfiguratorCanvas also registers an AR-group getter (returns physicalGroupRef).
   const handleExportARReady = useCallback((fn) => { exportARFnRef.current = fn }, [])
-  
-  // Phase 1: Heavy Async Generation
+
+  // Phase 1: Kick off the (slow) USDZ generation
   const handleGenerateAR = useCallback(async () => {
     const group = exportARFnRef.current?.()
     if (!group) return
-    
+
     setArStatus('generating')
     const url = await generateUSDZ(group)
     if (url) {
@@ -113,14 +180,19 @@ function App() {
       setArStatus('idle')
     }
   }, [])
-  // ─── STABILITY RESCUE (Fix QuotaExceeded crash) ───────────────────────────
+
+  // ─── STABILITY RESCUE ────────────────────────────────────────────────────────
+  // Early versions stored session data in localStorage, causing QuotaExceeded
+  // errors when large Base64 textures were saved. This clears the stale keys once.
   useEffect(() => {
-    // Clear problematic legacy keys to restore site stability
     ['packout-display-url', 'packout-staged-ids', 'packout-placements', 'packout-materials', 'packout-prices', 'packout-costs']
       .forEach(key => localStorage.removeItem(key))
   }, [])
 
-  // ─── PERSISTENCE ENGINE (IDB Hydration) ───────────────────────────────────
+  // ─── PERSISTENCE ENGINE — IDB Hydration ─────────────────────────────────────
+  // On first mount, read the saved session from IndexedDB and restore state.
+  // setIsHydrated(true) is called in the finally block so the auto-save effect
+  // (below) never fires before we have restored the saved values.
   useEffect(() => {
     const hydrate = async () => {
       try {
@@ -143,14 +215,16 @@ function App() {
     hydrate()
   }, [])
 
-  // ─── PERSISTENCE ENGINE (Async Auto-Save) ─────────────────────────────────
+  // ─── PERSISTENCE ENGINE — Async Auto-Save ───────────────────────────────────
+  // Whenever key state changes, debounce a write to IndexedDB.
+  // Placements are sanitised before saving: any accidental Three.js object
+  // references (mesh, functions) are stripped so IDB can serialise cleanly.
   useEffect(() => {
     if (!isHydrated) return // Don't save before hydration is complete
-    
+
     const saveData = async () => {
       try {
-        // Final Sanitization: Ensure NO non-POJOs reach IDB
-        // We strip any accidental .mesh or functions that might have leaked
+        // Strip any Three.js objects that may have leaked into placement state
         const sanitizedPlacements = {}
         Object.keys(placements).forEach(key => {
           sanitizedPlacements[key] = {
@@ -162,7 +236,7 @@ function App() {
           displayUrl,
           stagedProductIds,
           placements: sanitizedPlacements,
-          materialConfigs, // Save lightweight POJO configs instead of materials
+          materialConfigs, // Lightweight POJO overrides only
           unitPrices,
           unitCosts
         })
@@ -171,12 +245,15 @@ function App() {
       }
     }
 
-    const timer = setTimeout(saveData, 500) // Debounce saves by 500ms
+    // 500 ms debounce prevents excessive IDB writes during rapid interactions
+    const timer = setTimeout(saveData, 500)
     return () => clearTimeout(timer)
   }, [displayUrl, stagedProductIds, placements, displayMaterials, unitPrices, unitCosts, isHydrated])
 
-  // ─── PLACEMENT SYNC ───────────────────────────────────────────────────────
-  // Ensure any product physically on the display is automatically in the Bin
+  // ─── PLACEMENT SYNC ──────────────────────────────────────────────────────────
+  // Any product physically on the display should automatically appear in the Bin.
+  // This handles the IDB-hydration case: placements are restored before the
+  // product library loads, so we must reconcile once placements change.
   useEffect(() => {
     const placedIds = new Set()
     Object.values(placements).forEach(p => {
@@ -194,50 +271,59 @@ function App() {
     }
   }, [placements])
 
-  // Phase 2: Direct Synchronous Launch
+  // Phase 2: Direct synchronous launch of iOS AR viewer using the pre-built USDZ blob
   const handleLaunchAR = useCallback(() => {
     if (arUrl) {
       launchARQuickLook(arUrl)
-      // Reset for next time
+      // Reset so the button returns to "VIEW IN AR" after launching
       setArStatus('idle')
       setArUrl(null)
     }
   }, [arUrl])
 
+  // ─── DISPLAY SELECTION ──────────────────────────────────────────────────────
+  // Switching displays resets all scene-dependent state to prevent ghost
+  // selections (a shelf or part from the old model staying "active").
   const handleDisplaySelect = useCallback((url) => {
     setDisplayUrl(url)
-    // Reset context to prevent "Ghost Selections" on the new model
     setActivePartId(null)
     setActiveShelfId(null)
     setDisplayRotation(0)
     setIsSelectorOpen(false)
     setPlacements({})
     setDisplayMaterials([])
-    
-    // Reset AR
+
+    // Revoke the old USDZ blob URL to free memory
     setArStatus('idle')
     if (arUrl) URL.revokeObjectURL(arUrl)
     setArUrl(null)
   }, [arUrl])
 
+  // ─── CONTEXT SWITCHING ──────────────────────────────────────────────────────
+  // Selecting a shelf and selecting a material part are mutually exclusive.
+  // Activating one deactivates the other to keep exactly one floating menu open.
   const handleSelectShelf = useCallback((id) => {
     setActiveShelfId(id)
-    if (id) setActivePartId(null) // Context switch
+    if (id) setActivePartId(null)
   }, [])
 
   const handleSelectPart = useCallback((id) => {
     setActivePartId(id)
-    if (id) setActiveShelfId(null) // Context switch
+    if (id) setActiveShelfId(null)
   }, [])
 
+  // ─── DISPLAY DROP HANDLER ───────────────────────────────────────────────────
+  // Called by DropController when a dragged product is released over a dropzone.
+  // Calculates an initial "facings" count based on the shelf's world-space width
+  // and the product's physical width, then distributes the count across all items.
   const handleDisplayDrop = (mesh, product) => {
     if (!mesh?.name) return
-    const shelfId = mesh.name // Use stable GLB name, not transient UUID
+    const shelfId = mesh.name // Stable GLB name used as the map key
 
     setPlacements((prev) => {
       const existing = prev[shelfId] || { items: [] }
       const newItems = [...existing.items]
-      
+
       const newItem = {
         id: `item-${Date.now()}`,
         product,
@@ -249,9 +335,9 @@ function App() {
 
       newItems.push(newItem)
 
-      // Initial Split Logic: Calculate capacity using TRUE WORLD dimensions
+      // Calculate initial facings using TRUE WORLD dimensions (accounts for scale)
       if (!mesh?.geometry) return prev
-      
+
       mesh.geometry.computeBoundingBox()
       if (!mesh.geometry.boundingBox) return prev
 
@@ -260,10 +346,12 @@ function App() {
 
       const localWidth = mesh.geometry.boundingBox.max.x - mesh.geometry.boundingBox.min.x
       const worldWidth = localWidth * worldScale.x
-      
+
+      // Distribute shelf width evenly across all products currently on the shelf
       const targetWidthPerProduct = worldWidth / newItems.length
-      
+
       newItems.forEach(item => {
+        // product.dimensions[0] is width in inches; multiply by 0.0254 → metres
         item.facings = Math.max(1, Math.floor(targetWidthPerProduct / (item.product.dimensions[0] * 0.0254)))
       })
 
@@ -272,10 +360,12 @@ function App() {
         [shelfId]: { items: newItems }
       }
     })
-    
-    setActiveShelfId(shelfId)
+
+    setActiveShelfId(shelfId) // Immediately open the shelf's edit menu
   }
 
+  // ─── SHELF UPDATE ───────────────────────────────────────────────────────────
+  // Called by ShelfFloatingMenu when facings/spacing/stacking are changed.
   const handleUpdateShelf = useCallback((shelfId, newItems) => {
     setPlacements(prev => ({
       ...prev,
@@ -283,10 +373,14 @@ function App() {
     }))
   }, [])
 
+  // ─── MATERIAL READY CALLBACK ─────────────────────────────────────────────────
+  // Called by DisplayModel after it has set up all materials for the loaded GLB.
+  // We immediately re-apply any saved overrides from materialConfigs so colours
+  // and artwork mixes are restored without requiring user interaction.
   const handleMaterialsReady = useCallback((groups) => {
     setDisplayMaterials(groups)
 
-    // Re-hydration: Apply saved configs to the new material instances
+    // Re-hydration: apply saved POJO overrides to the newly created material instances
     groups.forEach(group => {
       const savedGroup = materialConfigs[group.groupName]
       if (!savedGroup) return
@@ -307,6 +401,10 @@ function App() {
     })
   }, [materialConfigs])
 
+  // ─── MATERIAL UPDATE CALLBACK ────────────────────────────────────────────────
+  // Called by MaterialCard whenever colour, roughness, or artwork mix changes.
+  // Merges the new values into the lightweight materialConfigs POJO which is
+  // then persisted to IDB by the auto-save effect above.
   const handleMaterialUpdate = useCallback((groupName, matUuid, config) => {
     setMaterialConfigs(prev => {
       const next = { ...prev }
@@ -319,11 +417,14 @@ function App() {
     })
   }, [])
 
+  // ─── STAGING TOGGLE ─────────────────────────────────────────────────────────
+  // Adds or removes a product from the Bin (stagedProductIds array).
+  // When removing, also sweeps all placements of that product from every shelf.
   const handleToggleStagedProduct = useCallback((id) => {
     setStagedProductIds(prev => {
       const isRemoving = prev.includes(id)
       if (isRemoving) {
-        // Automatically sweep this product from all shelves
+        // Remove from all shelves so no orphaned instances remain on the display
         setPlacements(current => {
           const next = { ...current }
           Object.keys(next).forEach(shelfId => {
@@ -340,17 +441,20 @@ function App() {
     })
   }, [])
 
-  // --- LIVE SYNC: When a product is updated in the library, sync all placed instances ---
+  // ─── LIVE PRODUCT SYNC ───────────────────────────────────────────────────────
+  // When a product is edited (e.g. dimensions or texture replaced), all placed
+  // instances must receive the updated product object so they re-render correctly.
   const handleProductUpdated = useCallback(async (id, updates) => {
     const updated = await updateProduct(id, updates)
     if (!updated) return
 
+    // Patch every shelf item that references this product
     setPlacements(prev => {
       const next = { ...prev }
       Object.keys(next).forEach(shelfId => {
         next[shelfId] = {
           ...next[shelfId],
-          items: next[shelfId].items.map(item => 
+          items: next[shelfId].items.map(item =>
             item.product.id === id ? { ...item, product: updated } : item
           )
         }
@@ -359,8 +463,10 @@ function App() {
     })
   }, [updateProduct])
 
+  // ─── RENDER ─────────────────────────────────────────────────────────────────
   return (
     <main className="w-screen h-screen overflow-hidden relative bg-[#0d0f12]">
+      {/* 3D Canvas — occupies the entire viewport as a background layer (z-0) */}
       <ConfiguratorCanvas
         displayUrl={displayUrl}
         draggedProduct={draggedProduct}
@@ -381,7 +487,8 @@ function App() {
         displayMaterials={displayMaterials}
         onLoaded={setDisplayModel}
       />
-      
+
+      {/* Left sidebar panel — display picker, product bin, export controls */}
       <Sidebar
         setDisplayUrl={handleDisplaySelect}
         setDraggedProduct={setDraggedProduct}
@@ -409,12 +516,14 @@ function App() {
         onUpdateMaterialConfig={handleMaterialUpdate}
       />
 
-      {/* ─── VIRTUAL DRAG PREVIEW (TOUCH ONLY) ─── */}
+      {/* ─── VIRTUAL DRAG PREVIEW (TOUCH ONLY) ────────────────────────────────
+          On touch devices, the HTML drag API doesn't work across the 3D canvas.
+          We render a floating preview clone at the pointer's position instead. */}
       {isTouchDevice && draggedProduct && dragPosition && (
-        <div 
+        <div
           className="fixed pointer-events-none z-[100] w-16 h-16 bg-white/20 border border-accent/40 rounded-xl backdrop-blur-sm shadow-2xl flex items-center justify-center p-1"
-          style={{ 
-            left: dragPosition.x - 32, 
+          style={{
+            left: dragPosition.x - 32,
             top: dragPosition.y - 32,
             transform: 'scale(1.1)',
             opacity: 0.8
@@ -426,7 +535,8 @@ function App() {
         </div>
       )}
 
-      <PropertiesPanel 
+      {/* Bottom-right profitability summary panel */}
+      <PropertiesPanel
         placements={placements}
         unitPrices={unitPrices}
         unitCosts={unitCosts}
@@ -435,13 +545,15 @@ function App() {
         scene={displayModel}
       />
 
-      {/* ─── ROTATION CONTROLLER ─── */}
+      {/* ─── ROTATION CONTROLLER ──────────────────────────────────────────────
+          Bottom-center HUD. Animates in after 500ms (animate-[slide-in-bottom]).
+          Syncs a number input and a range slider to the same displayRotation value. */}
       <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 pointer-events-none group">
         <div className="px-4 py-3 bg-glass-bg border border-glass-border backdrop-blur-xl rounded-2xl shadow-3xl pointer-events-auto flex items-center gap-5 min-w-[320px] transition-all duration-500 hover:scale-[1.02] hover:border-accent/30 translate-y-2 opacity-0 animate-[slide-in-bottom_0.6s_cubic-bezier(0.16,1,0.3,1)_0.5s_forwards]">
           <div className="flex flex-col gap-0.5 min-w-[80px]">
             <span className="text-[9px] font-black uppercase tracking-[0.2em] text-text-dim/60">Rotate Display</span>
             <div className="flex items-center gap-0.5">
-              <input 
+              <input
                 type="number" min="0" max="360"
                 value={Math.round(displayRotation)}
                 onChange={(e) => setDisplayRotation(Math.max(0, Math.min(360, parseFloat(e.target.value) || 0)))}
@@ -451,12 +563,13 @@ function App() {
             </div>
           </div>
           <div className="flex-1 relative flex items-center group/slider">
-            <input 
+            <input
               type="range" min="0" max="360" step="1"
               value={displayRotation}
               onChange={(e) => setDisplayRotation(parseFloat(e.target.value))}
               className="w-full h-1.5 bg-black/5 rounded-full appearance-none cursor-pointer accent-accent"
               style={{
+                // Fill the track up to the current value with the accent colour
                 background: `linear-gradient(to right, #0088ff ${(displayRotation/360)*100}%, rgba(0,0,0,0.05) ${(displayRotation/360)*100}%)`
               }}
             />
@@ -464,8 +577,9 @@ function App() {
         </div>
       </div>
 
+      {/* Display selector modal — shown when user clicks "Change Display" */}
       {isSelectorOpen && (
-        <DisplaySelectorModal 
+        <DisplaySelectorModal
           currentUrl={displayUrl}
           setDisplayUrl={handleDisplaySelect}
           onClose={() => setIsSelectorOpen(false)}
@@ -473,8 +587,9 @@ function App() {
         />
       )}
 
+      {/* Full product gallery — shown when user clicks "Manage Products" */}
       {showGallery && (
-        <ProductGalleryModal 
+        <ProductGalleryModal
           products={products}
           onAddProduct={addProduct}
           onUpdateProduct={handleProductUpdated}
@@ -487,7 +602,9 @@ function App() {
         />
       )}
 
-      {/* ─── DEDICATED REFINE STUDIO MODAL ─── */}
+      {/* ─── REFINE ASSET MODAL ───────────────────────────────────────────────
+          Shown when user edits an existing custom product. Wraps CustomProductCreator
+          in an overlay so it can be triggered from multiple places (sidebar, gallery). */}
       {editingProduct && (
         <div className="fixed inset-0 z-[250] flex items-center justify-center p-8">
           <div className="absolute inset-0 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300" onClick={() => setEditingProduct(null)} />
@@ -501,9 +618,9 @@ function App() {
                   <X size={18} />
                 </button>
              </div>
-             
+
              <div className="py-2">
-               <CustomProductCreator 
+               <CustomProductCreator
                  existingProduct={editingProduct}
                  onUpdate={(id, updates) => {
                    handleProductUpdated(id, updates)

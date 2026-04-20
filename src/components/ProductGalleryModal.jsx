@@ -68,8 +68,10 @@ export default function ProductGalleryModal({
   }
 
   const filteredProducts = useMemo(() => {
+    const q = search.toLowerCase()
     return products.filter(p => {
-      const matchSearch = p.name.toLowerCase().includes(search.toLowerCase())
+      const folder = p.folder || ((p.isCustom || p.textureUrl) ? 'Custom Product' : 'Standard Assets')
+      const matchSearch = !q || p.name.toLowerCase().includes(q) || folder.toLowerCase().includes(q)
       const matchCat    = categoryFilter === 'All' || (p.category || '2D') === categoryFilter
       return matchSearch && matchCat
     })
@@ -324,7 +326,7 @@ export default function ProductGalleryModal({
 
         <div className="flex-1 overflow-y-auto pr-3 custom-scrollbar">
           <div className="flex flex-col gap-8 pb-10">
-            {Object.entries(grouped).sort(([a], [b]) => a === 'Custom Product' ? -1 : b === 'Custom Product' ? 1 : a.localeCompare(b)).map(([folderName, items]) => (
+            {Object.entries(grouped).sort(([a], [b]) => a === 'Custom Product' ? -1 : b === 'Custom Product' ? 1 : a.localeCompare(b)).filter(([, items]) => !search || items.length > 0).map(([folderName, items]) => (
               <div key={folderName} className="flex flex-col gap-4 group/folder" onDragOver={(e) => { e.preventDefault(); setDragOverFolder(folderName) }} onDragLeave={() => setDragOverFolder(null)} onDrop={() => handleDropOnFolder(folderName)}>
                 <div className={`flex items-center gap-3 p-2 -mx-2 rounded-xl transition-all ${dragOverFolder === folderName ? 'bg-accent/20 scale-[1.01] border-2 border-dashed border-accent' : ''}`}>
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${dragOverFolder === folderName ? 'bg-accent text-white' : 'bg-accent/10 text-accent'}`}><Folder size={14} /></div>

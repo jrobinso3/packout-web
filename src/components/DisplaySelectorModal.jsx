@@ -89,12 +89,18 @@ export default function DisplaySelectorModal({ currentUrl, setDisplayUrl, onClos
                             }`}
                           >
                             {/* Image Preview */}
-                            <div className="aspect-[16/10] overflow-hidden bg-black/40 relative">
-                              <img 
-                                src={`${import.meta.env.BASE_URL}previews/${d.thumb}`}
-                                alt={d.name}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                              />
+                            <div className="aspect-[16/10] overflow-hidden bg-black/40 relative flex items-center justify-center">
+                              {d.thumb ? (
+                                <img 
+                                  src={`${import.meta.env.BASE_URL}previews/${d.thumb}`}
+                                  alt={d.name}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                                />
+                              ) : (
+                                <div className="text-accent/20 group-hover:scale-110 transition-all duration-700">
+                                  <Box size={40} />
+                                </div>
+                              )}
                               {isActive && (
                                 <div className="absolute top-4 right-4 w-8 h-8 rounded-full bg-accent flex items-center justify-center text-black shadow-lg">
                                   <Check size={18} strokeWidth={3} />

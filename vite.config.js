@@ -151,7 +151,7 @@ const syncGalleryPlugin = () => {
             try {
               const { fileName, base64Data } = JSON.parse(body)
               const filePath = path.join(productsDir, fileName)
-              
+
               if (!fs.existsSync(productsDir)) fs.mkdirSync(productsDir, { recursive: true })
 
               // Strip the data:image/...;base64, prefix if present
@@ -161,6 +161,30 @@ const syncGalleryPlugin = () => {
               res.statusCode = 200
               res.setHeader('Content-Type', 'application/json')
               res.end(JSON.stringify({ success: true, url: `products/${fileName}` }))
+            } catch (err) {
+              res.statusCode = 500
+              res.end(JSON.stringify({ error: err.message }))
+            }
+          })
+          return
+        }
+
+        if (req.method === 'POST' && req.url.endsWith('/api/upload-model')) {
+          let body = ''
+          req.on('data', chunk => { body += chunk })
+          req.on('end', () => {
+            try {
+              const { fileName, base64Data } = JSON.parse(body)
+              const modelsDir = path.join(productsDir, '3D')
+              if (!fs.existsSync(modelsDir)) fs.mkdirSync(modelsDir, { recursive: true })
+
+              const filePath = path.join(modelsDir, fileName)
+              const buffer = Buffer.from(base64Data.replace(/^data:[^;]+;base64,/, ''), 'base64')
+              fs.writeFileSync(filePath, buffer)
+
+              res.statusCode = 200
+              res.setHeader('Content-Type', 'application/json')
+              res.end(JSON.stringify({ success: true, url: `products/3D/${fileName}` }))
             } catch (err) {
               res.statusCode = 500
               res.end(JSON.stringify({ error: err.message }))
