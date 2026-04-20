@@ -144,6 +144,31 @@ const syncGalleryPlugin = () => {
           return
         }
 
+        if (req.method === 'POST' && req.url.endsWith('/api/remove-product')) {
+          let body = ''
+          req.on('data', chunk => { body += chunk })
+          req.on('end', () => {
+            try {
+              const { id } = JSON.parse(body)
+              const productsPath = path.join(dataDir, 'products.json')
+              
+              if (fs.existsSync(productsPath)) {
+                const currentProducts = JSON.parse(fs.readFileSync(productsPath, 'utf-8'))
+                const nextProducts = currentProducts.filter(p => p.id !== id)
+                fs.writeFileSync(productsPath, JSON.stringify(nextProducts, null, 2))
+              }
+              
+              res.statusCode = 200
+              res.setHeader('Content-Type', 'application/json')
+              res.end(JSON.stringify({ success: true }))
+            } catch (err) {
+              res.statusCode = 500
+              res.end(JSON.stringify({ error: err.message }))
+            }
+          })
+          return
+        }
+
         if (req.method === 'POST' && req.url.endsWith('/api/upload-texture')) {
           let body = ''
           req.on('data', chunk => { body += chunk })
@@ -193,6 +218,43 @@ const syncGalleryPlugin = () => {
           return
         }
         
+        if (req.method === 'POST' && req.url.endsWith('/api/save-display-thumb')) {
+          let body = ''
+          req.on('data', chunk => { body += chunk })
+          req.on('end', () => {
+            try {
+              const { displayId, base64Data } = JSON.parse(body)
+              const fileName = `${displayId}.png`
+              const filePath = path.join(previewsDir, fileName)
+
+              if (!fs.existsSync(previewsDir)) fs.mkdirSync(previewsDir, { recursive: true })
+
+              // Write the PNG to public/previews/
+              const buffer = Buffer.from(base64Data.replace(/^data:image\/\w+;base64,/, ''), 'base64')
+              fs.writeFileSync(filePath, buffer)
+
+              // Update manifest.json to point to the new thumbnail
+              const manifestPath = path.join(displaysDir, 'manifest.json')
+              if (fs.existsSync(manifestPath)) {
+                const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'))
+                const entry = manifest.find(d => d.id === displayId)
+                if (entry) {
+                  entry.thumb = fileName
+                  fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2))
+                }
+              }
+
+              res.statusCode = 200
+              res.setHeader('Content-Type', 'application/json')
+              res.end(JSON.stringify({ success: true, thumb: fileName }))
+            } catch (err) {
+              res.statusCode = 500
+              res.end(JSON.stringify({ error: err.message }))
+            }
+          })
+          return
+        }
+        
         next()
       })
 
@@ -220,5 +282,11 @@ export default defineConfig({
     react(),
     syncGalleryPlugin()
   ],
+  server: {
+    watch: {
+      // Prevent full-page reloads when the app writes to the global registry
+      ignored: ['**/public/data/**', '**/public/products/**']
+    }
+  },
   base: '/packout-web/',
 })

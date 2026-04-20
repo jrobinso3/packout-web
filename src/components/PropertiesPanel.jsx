@@ -23,7 +23,7 @@ import * as THREE from 'three'
 import { PieChart, TrendingUp, Package, DollarSign, ChevronDown, ChevronUp } from 'lucide-react'
 
 export default function PropertiesPanel({ placements, unitPrices, unitCosts, onUnitPriceChange, onUnitCostChange, scene }) {
-  const [minimized, setMinimized] = useState(false)
+  const [minimized, setMinimized] = useState(true)
 
   // ─── Report Calculation ───────────────────────────────────────────────────
   // Derived from placements + unitPrices + unitCosts. Recalculates whenever

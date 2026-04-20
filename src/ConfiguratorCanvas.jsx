@@ -137,7 +137,7 @@ function ExportCapture({ onReady, helperGroupRef }) {
 
       scene.background = null
       gl.setClearColor(0x000000, 0)
-      gl.setPixelRatio(Math.min(window.devicePixelRatio, 2)) // Up to 2× for retina
+      gl.setPixelRatio(3) // 3× supersampling for high-res export
 
       gl.render(scene, camera)
 

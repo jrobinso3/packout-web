@@ -171,7 +171,9 @@ export function MaterialCard({ entry }) {
   const isBrandingFaceCheck = useCallback(() => {
     const matName = (name || '').toLowerCase()
     const isSide2 = matName.includes('side2') || matName.includes('side 2')
-    return (matName.includes('front') || matName.includes('back') || matName.includes('side')) && !isSide2 && !matName.includes('inside')
+    // We treat Front and Sides as branding faces (start white for artwork).
+    // 'Back' is now excluded so it shows the original corrugate texture by default.
+    return (matName.includes('front') || matName.includes('side')) && !isSide2 && !matName.includes('inside')
   }, [name])
 
   // Artwork mix: read from material memory (userData) if already set, else use naming heuristic

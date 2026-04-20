@@ -17,7 +17,7 @@ import ProductGalleryModal from './components/ProductGalleryModal'
 import CustomProductCreator from './components/CustomProductCreator'
 import { generateUSDZ, launchARQuickLook, isIOS } from './utils/ARUtility'
 import { useProductLibrary } from './hooks/useProductLibrary'
-import { getSession, saveSession } from './utils/idbUtility'
+import { getSession, saveSession, getAllDisplayThumbs, saveDisplayThumb } from './utils/idbUtility'
 
 function App() {
   // ─── Core Display State ─────────────────────────────────────────────────────
@@ -39,6 +39,7 @@ function App() {
   // The manifest.json catalogue of all GLB fixture files in public/displays/.
   // Generated automatically by the Vite syncGalleryPlugin on dev-server start.
   const [displayLibrary, setDisplayLibrary] = useState([])
+  const [displayThumbs, setDisplayThumbs] = useState({})
 
   // Guard flag: don't write to IDB until the initial read ("hydration") is done,
   // otherwise we would overwrite saved state with empty defaults.
@@ -77,6 +78,27 @@ function App() {
       .then(res => res.json())
       .then(data => setDisplayLibrary(data))
       .catch(err => console.error('Error loading manifest:', err))
+  }, [])
+
+  // Load persisted display thumbnails from IDB
+  useEffect(() => {
+    getAllDisplayThumbs().then(saved => {
+      if (saved && Object.keys(saved).length > 0) setDisplayThumbs(saved)
+    }).catch(() => {})
+  }, [])
+
+  const handleSaveDisplayThumb = useCallback(async (displayId, dataUrl) => {
+    setDisplayThumbs(prev => ({ ...prev, [displayId]: dataUrl }))
+    // Persist to IDB for instant restoration on next load
+    try { await saveDisplayThumb(displayId, dataUrl) } catch (e) { console.warn('IDB thumb save failed', e) }
+    // Persist to disk: writes PNG to public/previews/ and patches manifest.json
+    try {
+      await fetch(`${import.meta.env.BASE_URL}api/save-display-thumb`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ displayId, base64Data: dataUrl })
+      })
+    } catch (e) { console.warn('Disk thumb save failed (dev server only)', e) }
   }, [])
 
   // ─── Placement State ────────────────────────────────────────────────────────
@@ -532,6 +554,7 @@ function App() {
         onOpenEditor={handleOpenEditor}
         currentDisplayUrl={displayUrl}
         displayLibrary={displayLibrary}
+        displayThumbs={displayThumbs}
         productLibrary={products}
         onAddProduct={addProduct}
         onRemoveProduct={removeProduct}
@@ -608,6 +631,8 @@ function App() {
           setDisplayUrl={handleDisplaySelect}
           onClose={() => setIsSelectorOpen(false)}
           displayLibrary={displayLibrary}
+          displayThumbs={displayThumbs}
+          onSaveThumb={handleSaveDisplayThumb}
         />
       )}
 

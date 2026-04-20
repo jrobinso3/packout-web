@@ -168,7 +168,6 @@ export default function DisplayModel({ url, onMaterialsReady, onLoaded, rotation
             const isSide2 = matName.includes('side2') || matName.includes('side 2')
             const isBrandingFace = (
               matName.includes('front') ||
-              matName.includes('back') ||
               matName.includes('side')
             ) && !isSide2 && !matName.includes('inside')
 
@@ -183,6 +182,7 @@ export default function DisplayModel({ url, onMaterialsReady, onLoaded, rotation
                 // Enable tiling/repeat wrapping for the corrugate/cardboard texture
                 newMat.map.wrapS = THREE.RepeatWrapping
                 newMat.map.wrapT = THREE.RepeatWrapping
+                newMat.map.repeat.set(3, 3) // 3x Tile for better scale
               }
             }
             return newMat

@@ -18,7 +18,8 @@ const DB_NAME         = 'PackoutDB'
 const STORE_NAME      = 'Products'
 const HIDDEN_STORE    = 'HiddenProducts'
 const SESSION_STORE   = 'Session'
-const VERSION         = 3  // Bumped to v3 for HiddenProducts store
+const DISPLAY_THUMBS  = 'DisplayThumbs'
+const VERSION         = 4  // v4: DisplayThumbs store
 
 export async function initDB() {
   return openDB(DB_NAME, VERSION, {
@@ -35,6 +36,12 @@ export async function initDB() {
         // v3 migration: Add HiddenProducts store
         if (!db.objectStoreNames.contains(HIDDEN_STORE)) {
           db.createObjectStore(HIDDEN_STORE)
+        }
+      }
+      if (oldVersion < 4) {
+        // v4 migration: Add DisplayThumbs store
+        if (!db.objectStoreNames.contains(DISPLAY_THUMBS)) {
+          db.createObjectStore(DISPLAY_THUMBS)
         }
       }
     },
@@ -105,4 +112,20 @@ export async function saveSession(data) {
 export async function getSession() {
   const db = await initDB()
   return db.get(SESSION_STORE, 'current-session')
+}
+
+// ─── Display Thumbnail Persistence ───────────────────────────────────────────
+
+export async function saveDisplayThumb(displayId, dataUrl) {
+  const db = await initDB()
+  return db.put(DISPLAY_THUMBS, dataUrl, displayId)
+}
+
+export async function getAllDisplayThumbs() {
+  const db = await initDB()
+  const keys = await db.getAllKeys(DISPLAY_THUMBS)
+  const vals = await db.getAll(DISPLAY_THUMBS)
+  const map = {}
+  keys.forEach((k, i) => { map[k] = vals[i] })
+  return map
 }

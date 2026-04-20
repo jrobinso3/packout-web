@@ -87,6 +87,7 @@ export default function Sidebar({
   onOpenProductGallery,
   currentDisplayUrl,
   displayLibrary,
+  displayThumbs = {},
   productLibrary = [],
   stagedProductIds = [],
   onToggleStaging,
@@ -195,9 +196,10 @@ export default function Sidebar({
               {(() => {
                 const active = displayLibrary.find(d => currentDisplayUrl.includes(d.url))
                 if (active) {
-                  return (
+                  const src = displayThumbs[active.id] || (active.thumb ? `${import.meta.env.BASE_URL}previews/${active.thumb}` : null)
+                  if (src) return (
                     <img 
-                      src={`${import.meta.env.BASE_URL}previews/${active.thumb}`} 
+                      src={src} 
                       alt="Active Preview"
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                     />

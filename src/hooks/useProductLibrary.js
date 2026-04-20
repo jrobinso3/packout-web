@@ -92,18 +92,46 @@ export function useProductLibrary() {
     if (!existing) return
     
     const updated = { ...existing, ...updates }
-    await idb.saveProduct(updated)
-    await fetchLibrary()
+    
+    try {
+      // 3. Sync to the global JSON registry via the Vite development API
+      const res = await fetch(`${import.meta.env.BASE_URL}api/save-product`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated)
+      })
+      if (!res.ok) throw new Error('Global sync failed')
+      
+      // 4. Update local persistence
+      await idb.saveProduct(updated)
+      await fetchLibrary()
+    } catch (err) {
+      console.warn('Global registry sync failed, falling back to local storage:', err)
+      await idb.saveProduct(updated)
+      await fetchLibrary()
+    }
     return updated
   }, [products, fetchLibrary])
 
   const removeProduct = useCallback(async (id) => {
-    // 1. Delete from IDB product store
-    await idb.deleteProduct(id)
-    // 2. Mark as hidden so it doesn't re-emerge from products.json
-    await idb.hideProduct(id)
-    // 3. Refresh
-    await fetchLibrary()
+    try {
+      // 1. Sync removal to global registry
+      await fetch(`${import.meta.env.BASE_URL}api/remove-product`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+      })
+      
+      // 2. Local cleanup
+      await idb.deleteProduct(id)
+      await idb.hideProduct(id)
+      await fetchLibrary()
+    } catch (err) {
+      console.warn('Global removal failed, falling back to local hide:', err)
+      await idb.deleteProduct(id)
+      await idb.hideProduct(id)
+      await fetchLibrary()
+    }
   }, [fetchLibrary])
 
   const clearLibrary = useCallback(async () => {

@@ -2,7 +2,8 @@ import { useState, useMemo, useRef } from 'react'
 import { 
   X, Search, Plus, FileSpreadsheet, Upload, 
   CheckCircle2, AlertCircle, Trash2, Edit3,
-  Download, FileJson, Folder, Palette, FolderPlus, Box
+  Download, FileJson, Folder, Palette, FolderPlus, Box,
+  CloudDownload, Globe, Database
 } from 'lucide-react'
 import ProductThumbnail from './ProductThumbnail'
 import CustomProductCreator from './CustomProductCreator'
@@ -19,7 +20,7 @@ export default function ProductGalleryModal({
   onOpenEditor,
   onClose 
 }) {
-  const [activeTab, setActiveTab] = useState('browse') // 'browse' | 'import' | 'design'
+  const [activeTab, setActiveTab] = useState('browse') // 'browse' | 'brandstore' | 'import'
   const [search, setSearch]       = useState('')
   const [categoryFilter, setCategoryFilter] = useState('All')
   const [isCreatingFolder, setIsCreatingFolder] = useState(false)
@@ -28,7 +29,25 @@ export default function ProductGalleryModal({
   // --- Import Context ---
   const [pendingProducts, setPendingProducts] = useState([])
   const [isParsing, setIsParsing] = useState(false)
-  const [importStatus, setImportStatus] = useState('idle')
+  const [importStatus, setImportStatus] = useState('idle') // idle, staged, working
+  const [selectedMockIds, setSelectedMockIds] = useState(new Set())
+  const [hoveredMockId, setHoveredMockId] = useState(null)
+
+  const mockBrandstoreResults = [
+    { id: 'm1', upc: '037000123456', brand: 'Tide', name: 'Pods Original 31ct', dims: '8.5" x 4.2" x 10.1"', weight: '1.2 lbs', img: 'https://i5.walmartimages.com/seo/Tide-PODS-Laundry-Detergent-Packs-Original-Scent-31-Count_a8d468c6-93c5-49e9-bfa4-562242bd905e.8ad8f057b333d90cd710d2c271158246.jpeg?odnHeight=600&odnWidth=600&odnBg=FFFFFF' },
+    { id: 'm2', upc: '037000987654', brand: 'Pampers', name: 'Swaddlers Size 4', dims: '12.0" x 8.0" x 14.5"', weight: '4.5 lbs', img: 'https://i5.walmartimages.com/seo/Pampers-Swaddlers-Baby-Diapers-Size-4-116-Count-Select-for-More-Options_b826150a-7b59-4eda-95f6-137b7110f174.959cf8bfeb43d6c3c4fbe630715fc3fd.jpeg?odnHeight=600&odnWidth=600&odnBg=FFFFFF' },
+    { id: 'm3', upc: '047000555666', brand: 'Crest', name: '3D White Arctic', dims: '7.5" x 1.5" x 1.5"', weight: '0.4 lbs', img: 'https://i5.walmartimages.com/seo/3D-White-Advanced-Teeth-Whitening-Toothpaste-with-Fluoride-Arctic-Fresh-3-3-oz_c0162079-219b-44ff-a4a5-072b07eb994c.e6563588ba4773ff94f2f924b0f474ba.jpeg?odnHeight=600&odnWidth=600&odnBg=FFFFFF' }
+  ]
+
+  const toggleMockSelection = (id) => {
+    setSelectedMockIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
   const excelRef = useRef()
   const imageRef = useRef()
   const jsonRef = useRef()
@@ -190,76 +209,203 @@ export default function ProductGalleryModal({
     }
   }
 
-  const renderImportStep = () => (
-    <div className="flex-1 flex flex-col gap-6 overflow-hidden">
+  const renderBrandstoreTab = () => (
+    <div className="flex-1 flex flex-col gap-6 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-300">
       <div className="flex items-center justify-between px-2">
-        <h4 className="text-[10px] font-black uppercase tracking-widest text-text-dim">Spreadsheet Batch Import</h4>
-        <button onClick={downloadProductTemplate} className="text-[10px] font-black uppercase tracking-widest text-accent hover:underline flex items-center gap-1.5"><Download size={12}/> Download Excel Template</button>
-      </div>
-      <div className="grid grid-cols-2 gap-6">
-        <div className={`flex flex-col gap-4 p-6 rounded-2xl border-2 border-dashed transition-all ${pendingProducts.length ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-white/5 bg-white/5 hover:border-accent/40'}`}>
-          <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${pendingProducts.length ? 'bg-emerald-500/20 text-emerald-400' : 'bg-accent/20 text-accent'}`}>
-              <FileSpreadsheet size={20} />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-text-main">1. Load Spreadsheet</h3>
-              <p className="text-[10px] text-text-dim uppercase tracking-wider font-black">Excel .xlsx or .xls</p>
-            </div>
-          </div>
-          <button onClick={() => excelRef.current?.click()} className="w-full py-2.5 rounded-xl bg-white/5 border border-white/5 text-[11px] font-black uppercase tracking-widest hover:bg-white/10 transition-all">
-            {isParsing ? 'Parsing...' : (pendingProducts.length ? 'Replace File' : 'Select Excel')}
-          </button>
-          <input ref={excelRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleExcelUpload} />
-        </div>
-        <div className={`flex flex-col gap-4 p-6 rounded-2xl border-2 border-dashed transition-all ${!pendingProducts.length ? 'opacity-30 pointer-events-none grayscale' : 'border-white/5 bg-white/5 hover:border-accent/40'}`}>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-secondary/20 text-secondary flex items-center justify-center">
-              <Upload size={20} />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-text-main">2. Match Images</h3>
-              <p className="text-[10px] text-text-dim uppercase tracking-wider font-black">Drop PNGs</p>
-            </div>
-          </div>
-          <button onClick={() => imageRef.current?.click()} className="w-full py-2.5 rounded-xl bg-white/5 border border-white/5 text-[11px] font-black uppercase tracking-widest hover:bg-white/10 transition-all">
-            Select Multiple Images
-          </button>
-          <input ref={imageRef} type="file" accept=".png,.jpg,.jpeg" multiple className="hidden" onChange={handleImageUpload} />
-          <input ref={manualRef} type="file" accept=".png,.jpg,.jpeg" className="hidden" onChange={handleManualImage} />
+        <h3 className="text-xl font-black text-text-main uppercase tracking-tight">P&G Brandstore</h3>
+        <div className="px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[8px] font-black uppercase tracking-widest flex items-center gap-2">
+          <Globe size={10} /> Live Enterprise Connection
         </div>
       </div>
+      
+      <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar flex flex-col gap-6">
+        <div className="p-6 rounded-3xl border border-white/10 bg-white/5 flex flex-col gap-6">
+           <div className="flex flex-col gap-1 px-1">
+             <p className="text-sm font-medium text-text-dim/80 leading-relaxed italic">
+               Search for single product or upload a list of product to import.
+             </p>
+           </div>
+           
+           <div className="relative group/search">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-text-dim/60 group-hover/search:text-accent transition-colors" size={16} />
+              <input 
+                type="text" 
+                placeholder="Search by UPC..." 
+                className="w-full pl-11 pr-4 py-4 bg-white/10 border border-white/20 rounded-2xl text-sm font-bold text-text-main focus:outline-none focus:border-accent/50 transition-all placeholder:text-text-dim/40 shadow-inner"
+              />
+           </div>
 
-      {pendingProducts.length > 0 && (
-        <div className="flex-1 flex flex-col bg-black/20 rounded-2xl p-6 border border-white/5 overflow-hidden">
-          <div className="flex items-center justify-between mb-4">
-            <h4 className="text-xs font-black uppercase tracking-[0.2em] text-text-dim">Import Staging: {pendingProducts.filter(p => p.isReady).length} / {pendingProducts.length} Matched</h4>
-          </div>
-          <div className="flex-1 overflow-y-auto grid grid-cols-5 gap-3 pr-2 custom-scrollbar content-start">
-            {pendingProducts.map((p, i) => (
-              <div 
-                key={i} 
-                onClick={() => { setManualTargetIndex(i); manualRef.current?.click() }}
-                className={`p-2 rounded-xl border flex flex-col gap-2 relative transition-all cursor-pointer group ${p.isReady ? 'border-emerald-500/20 bg-emerald-500/5 hover:border-emerald-500/50' : 'border-white/5 bg-white/5 hover:border-accent/40'}`}
-              >
-                <div className="aspect-square rounded-lg bg-black/40 overflow-hidden flex items-center justify-center border border-white/5">
-                  {p.textureUrl ? <img src={p.textureUrl} className="w-full h-full object-contain" alt="" /> : <div className="w-4 h-4 rounded-full" style={{ backgroundColor: p.color }} />}
-                  <div className="absolute inset-0 bg-accent/20 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center backdrop-blur-[1px]">
-                    <Upload size={16} className="text-white" />
-                  </div>
-                </div>
-                <span className="text-[9px] font-bold text-text-main truncate text-center">{p.name}</span>
+           <div className="grid grid-cols-1 gap-4">
+              <div className="flex flex-col gap-4 p-6 rounded-3xl border-2 border-dashed border-white/10 bg-white/5 hover:border-accent/40 transition-all cursor-pointer group/dropzone">
+                 <div className="flex items-center gap-3">
+                   <div className="w-12 h-12 rounded-2xl bg-accent/20 text-accent flex items-center justify-center group-hover/dropzone:scale-110 transition-transform">
+                     <FileSpreadsheet size={24} />
+                   </div>
+                   <div>
+                      <h3 className="text-sm font-bold text-text-main uppercase tracking-tight">Batch UPC Import</h3>
+                      <p className="text-[10px] text-text-dim uppercase tracking-wider font-black">XLSX Product List</p>
+                   </div>
+                 </div>
+                 <button className="w-full py-3 rounded-xl bg-white/5 border border-white/5 text-[11px] font-black uppercase tracking-widest text-text-main hover:bg-white/10 transition-all">
+                   Select Excel File
+                 </button>
               </div>
-            ))}
+           </div>
+
+           {/* Brandstore Results Window */}
+           <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between px-1">
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-text-dim">Search Results</h4>
+                <span className="text-[9px] font-bold text-accent px-2 py-0.5 rounded-full bg-accent/10">3 Products Found</span>
+              </div>
+              <div className="bg-white/85 rounded-3xl border border-white/40 overflow-hidden shadow-2xl backdrop-blur-md">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-zinc-100 border-b border-black/5 text-[9px] font-black uppercase tracking-widest text-zinc-500">
+                      <th className="px-5 py-4 w-12 text-center">Sel</th>
+                      <th className="px-4 py-4">UPC</th>
+                      <th className="px-4 py-4">Brand</th>
+                      <th className="px-4 py-4">Product Name</th>
+                      <th className="px-4 py-4">Dimensions</th>
+                      <th className="px-4 py-4">Weight</th>
+                    </tr>
+                  </thead>
+                  <tbody className="relative">
+                    {mockBrandstoreResults.map((row) => {
+                      const isSelected = selectedMockIds.has(row.id)
+                      const isHovered = hoveredMockId === row.id
+                      return (
+                        <tr 
+                          key={row.id} 
+                          onClick={() => toggleMockSelection(row.id)}
+                          onMouseEnter={() => setHoveredMockId(row.id)}
+                          onMouseLeave={() => setHoveredMockId(null)}
+                          className={`border-b border-black/5 text-[11px] transition-all cursor-pointer group/row relative ${isSelected ? 'bg-accent/10' : 'text-zinc-800 hover:bg-black/5'}`}
+                        >
+                          <td className="px-5 py-3 relative">
+                            <div className={`w-5 h-5 rounded-lg border flex items-center justify-center mx-auto transition-all ${isSelected ? 'border-accent bg-accent' : 'border-black/10 group-hover/row:border-accent group-hover/row:bg-accent/10'}`}>
+                              <div className={`w-2.5 h-2.5 rounded-sm bg-white transition-opacity ${isSelected ? 'opacity-100' : 'opacity-0'}`} />
+                            </div>
+
+                            {/* Floating Preview Image */}
+                            {isHovered && (
+                              <div className="absolute left-full ml-4 -top-16 z-[100] pointer-events-none transition-all animate-in fade-in zoom-in duration-200">
+                                 <div className="p-2 bg-white rounded-2xl shadow-3xl border border-black/10 scale-125 overflow-hidden ring-4 ring-black/5">
+                                   <img src={row.img} className="w-32 h-32 object-contain" alt="" />
+                                   <div className="mt-2 text-center text-[9px] font-black uppercase text-zinc-400 tracking-widest">{row.brand} Verification</div>
+                                 </div>
+                              </div>
+                            )}
+                          </td>
+                          <td className={`px-4 py-3 font-mono font-bold ${isSelected ? 'text-accent' : 'text-zinc-500'}`}>{row.upc}</td>
+                          <td className="px-4 py-3 font-bold text-zinc-900">{row.brand}</td>
+                          <td className="px-4 py-3 font-bold text-zinc-900">{row.name}</td>
+                          <td className="px-4 py-3 italic text-zinc-500">{row.dims}</td>
+                          <td className="px-4 py-3 font-bold text-zinc-700">{row.weight}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+           </div>
+
+           <button className={`w-full py-4 rounded-2xl shadow-lg text-[11px] font-black uppercase tracking-widest text-white transition-all shadow-accent/20 ${selectedMockIds.size > 0 ? 'bg-gradient-to-br from-accent to-blue-600 hover:scale-[1.01] active:scale-[0.99] hover:shadow-xl hover:shadow-accent/40' : 'bg-zinc-400 cursor-not-allowed opacity-50'}`}>
+             {selectedMockIds.size > 0 ? `Import ${selectedMockIds.size} Selected Items` : 'Select Products to Import'}
+           </button>
+        </div>
+      </div>
+    </div>
+  )
+
+  const renderImportTab = () => (
+    <div className="flex-1 flex flex-col gap-6 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-300">
+      <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar flex flex-col gap-8">
+        
+        {/* Section 1: Spreadsheet Batch */}
+        <div className="flex flex-col gap-6">
+          <div className="flex items-center justify-between px-2">
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-text-dim">Spreadsheet Batch Import</h4>
+            <button onClick={downloadProductTemplate} className="text-[10px] font-black uppercase tracking-widest text-accent hover:underline flex items-center gap-1.5"><Download size={12}/> Download Excel Template</button>
           </div>
-          <div className="pt-6 mt-4 border-t border-white/5 flex gap-4">
-            <button onClick={() => { setPendingProducts([]); setImportStatus('idle') }} className="px-6 py-3 rounded-xl bg-white/5 text-[11px] font-black uppercase tracking-widest hover:bg-red-500/20 hover:text-red-400 transition-all">Cancel</button>
-            <button onClick={handleFinalizeImport} disabled={importStatus === 'working' || !pendingProducts.length} className="flex-1 py-3 rounded-xl bg-gradient-to-br from-accent to-blue-600 shadow-lg text-[11px] font-black uppercase tracking-widest text-white hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-30">
-              {importStatus === 'working' ? 'CONVERTING BINARY DATABASE...' : `IMPORT ${pendingProducts.length} PRODUCTS`}
-            </button>
+          <div className="grid grid-cols-2 gap-6">
+            <div className={`flex flex-col gap-4 p-6 rounded-3xl border-2 border-dashed transition-all ${pendingProducts.length ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-white/5 bg-white/5 hover:border-accent/40'}`}>
+              <div className="flex items-center gap-3">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${pendingProducts.length ? 'bg-emerald-500/20 text-emerald-400' : 'bg-accent/20 text-accent'}`}>
+                  <FileSpreadsheet size={24} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-text-main uppercase tracking-tight">1. Load Spreadsheet</h3>
+                  <p className="text-[10px] text-text-dim uppercase tracking-wider font-black">EXCEL DATA</p>
+                </div>
+              </div>
+              <button onClick={() => excelRef.current?.click()} className="w-full py-3 rounded-xl bg-white/5 border border-white/5 text-[11px] font-black uppercase tracking-widest hover:bg-white/10 transition-all">
+                {isParsing ? 'Parsing...' : (pendingProducts.length ? 'Replace File' : 'Select Excel')}
+              </button>
+              <input ref={excelRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleExcelUpload} />
+            </div>
+            <div className={`flex flex-col gap-4 p-6 rounded-3xl border-2 border-dashed transition-all ${!pendingProducts.length ? 'opacity-30 pointer-events-none grayscale' : 'border-white/5 bg-white/5 hover:border-accent/40'}`}>
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-secondary/20 text-secondary flex items-center justify-center">
+                  <Upload size={24} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-text-main uppercase tracking-tight">2. Match Images</h3>
+                  <p className="text-[10px] text-text-dim uppercase tracking-wider font-black">DROP ASSETS</p>
+                </div>
+              </div>
+              <button onClick={() => imageRef.current?.click()} className="w-full py-3 rounded-xl bg-white/5 border border-white/5 text-[11px] font-black uppercase tracking-widest hover:bg-white/10 transition-all">
+                Select Multiple Images
+              </button>
+              <input ref={imageRef} type="file" accept=".png,.jpg,.jpeg" multiple className="hidden" onChange={handleImageUpload} />
+              <input ref={manualRef} type="file" accept=".png,.jpg,.jpeg" className="hidden" onChange={handleManualImage} />
+            </div>
+          </div>
+
+          {pendingProducts.length > 0 && (
+            <div className="flex flex-col bg-black/20 rounded-3xl p-6 border border-white/5 overflow-hidden">
+              <div className="flex items-center justify-between mb-4 px-1">
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-text-dim">Staging Area: {pendingProducts.filter(p => p.isReady).length} / {pendingProducts.length} Ready</h4>
+              </div>
+              <div className="max-h-[300px] overflow-y-auto grid grid-cols-4 gap-4 pr-2 custom-scrollbar content-start">
+                {pendingProducts.map((p, i) => (
+                  <div 
+                    key={i} 
+                    onClick={() => { setManualTargetIndex(i); manualRef.current?.click() }}
+                    className={`p-3 rounded-2xl border flex flex-col gap-2 relative transition-all cursor-pointer group ${p.isReady ? 'border-emerald-500/20 bg-emerald-500/5 hover:border-emerald-500/50' : 'border-white/5 bg-white/5 hover:border-accent/40 shadow-lg'}`}
+                  >
+                    <div className="aspect-square rounded-xl bg-black/40 overflow-hidden flex items-center justify-center border border-white/5">
+                      {p.textureUrl ? <img src={p.textureUrl} className="w-full h-full object-contain" alt="" /> : <div className="w-6 h-6 rounded-full" style={{ backgroundColor: p.color }} />}
+                      <div className="absolute inset-0 bg-accent/20 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center backdrop-blur-[1px]">
+                        <Upload size={20} className="text-white" />
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-bold text-text-main truncate text-center">{p.name}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="pt-6 mt-6 border-t border-white/5 flex gap-4">
+                <button onClick={() => { setPendingProducts([]); setImportStatus('idle') }} className="px-8 py-3 rounded-xl bg-white/5 text-[11px] font-black uppercase tracking-widest hover:bg-red-500/20 hover:text-red-400 transition-all">Cancel</button>
+                <button onClick={handleFinalizeImport} disabled={importStatus === 'working' || !pendingProducts.length} className="flex-1 py-3 rounded-xl bg-gradient-to-br from-accent to-blue-600 shadow-lg text-[11px] font-black uppercase tracking-widest text-white hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-30">
+                  {importStatus === 'working' ? 'CONVERTING BINARY DATABASE...' : `EXECUTE BATCH IMPORT`}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Section 2: Product Studio (Manual) */}
+        <div className="flex flex-col gap-6">
+          <div className="px-2">
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-text-dim">Manual Product Creation</h4>
+          </div>
+          <div className="p-8 bg-white/5 rounded-3xl border border-white/5 text-center">
+            <div className="w-16 h-16 rounded-3xl bg-accent text-white flex items-center justify-center shadow-2xl mx-auto mb-6 shadow-accent/20"><Palette size={32} /></div>
+            <h3 className="text-xl font-black text-text-main mb-6 uppercase tracking-tight">Product Studio</h3>
+            <CustomProductCreator onAdd={(p) => { onAddProduct(p); setActiveTab('browse') }} />
           </div>
         </div>
-      )}
+      </div>
     </div>
   )
 
@@ -326,7 +472,13 @@ export default function ProductGalleryModal({
 
         <div className="flex-1 overflow-y-auto pr-3 custom-scrollbar">
           <div className="flex flex-col gap-8 pb-10">
-            {Object.entries(grouped).sort(([a], [b]) => a === 'Custom Product' ? -1 : b === 'Custom Product' ? 1 : a.localeCompare(b)).filter(([, items]) => !search || items.length > 0).map(([folderName, items]) => (
+            {Object.entries(grouped)
+              .sort(([a], [b]) => a === 'Custom Product' ? -1 : b === 'Custom Product' ? 1 : a.localeCompare(b))
+              .filter(([, items]) => {
+                const isFiltered = search.trim() !== '' || categoryFilter !== 'All'
+                return !isFiltered || items.length > 0
+              })
+              .map(([folderName, items]) => (
               <div key={folderName} className="flex flex-col gap-4 group/folder" onDragOver={(e) => { e.preventDefault(); setDragOverFolder(folderName) }} onDragLeave={() => setDragOverFolder(null)} onDrop={() => handleDropOnFolder(folderName)}>
                 <div className={`flex items-center gap-3 p-2 -mx-2 rounded-xl transition-all ${dragOverFolder === folderName ? 'bg-accent/20 scale-[1.01] border-2 border-dashed border-accent' : ''}`}>
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${dragOverFolder === folderName ? 'bg-accent text-white' : 'bg-accent/10 text-accent'}`}><Folder size={14} /></div>
@@ -403,26 +555,16 @@ export default function ProductGalleryModal({
         <div className="flex items-center justify-between flex-shrink-0">
           <div className="flex flex-col"><h2 className="text-3xl font-black tracking-tighter text-text-main uppercase">Product Gallery</h2></div>
           <div className="flex items-center p-1.5 bg-black/40 rounded-2xl border border-white/5">
-            <button onClick={() => setActiveTab('browse')} className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'browse' ? 'bg-white text-black' : 'text-text-dim hover:text-text-main'}`}>Browse</button>
-            <button onClick={() => setActiveTab('import')} className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'import' ? 'bg-secondary text-white' : 'text-text-dim hover:text-text-main'}`}>Batch Import</button>
-            <button onClick={() => setActiveTab('design')} className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'design' ? 'bg-accent text-white' : 'text-text-dim hover:text-text-main'}`}>Create Product</button>
+            <button onClick={() => setActiveTab('browse')} className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'browse' ? 'bg-white text-black shadow-lg' : 'text-text-dim hover:text-text-main'}`}>Browse</button>
+            <button onClick={() => setActiveTab('brandstore')} className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'brandstore' ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' : 'text-text-dim hover:text-text-main'}`}>Brandstore</button>
+            <button onClick={() => setActiveTab('import')} className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'import' ? 'bg-secondary text-white shadow-lg shadow-secondary/20' : 'text-text-dim hover:text-text-main'}`}>Import</button>
           </div>
           <button onClick={onClose} className="w-12 h-12 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-text-dim hover:text-text-main transition-all active:scale-95"><X size={20} /></button>
         </div>
 
-
-
         {activeTab === 'browse' && renderBrowseGrid()}
-        {activeTab === 'import' && renderImportStep()}
-        {activeTab === 'design' && (
-          <div className="flex-1 flex flex-col items-center justify-center animate-in fade-in slide-in-from-bottom-4">
-            <div className="w-full max-w-lg p-12 bg-white/5 rounded-[2.5rem] border border-white/5 text-center">
-              <div className="w-16 h-16 rounded-3xl bg-accent text-white flex items-center justify-center shadow-xl mx-auto mb-6"><Palette size={32} /></div>
-              <h3 className="text-2xl font-black text-text-main mb-6 uppercase tracking-tight">Product Studio</h3>
-              <CustomProductCreator onAdd={(p) => { onAddProduct(p); setActiveTab('browse') }} />
-            </div>
-          </div>
-        )}
+        {activeTab === 'brandstore' && renderBrandstoreTab()}
+        {activeTab === 'import' && renderImportTab()}
       </div>
     </div>
   )

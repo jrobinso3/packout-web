@@ -1,8 +1,23 @@
-import { useState, useEffect } from 'react'
-import { X, Upload, Box, Check, Loader2 } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { X, Upload, Box, Check, Loader2, ImagePlus } from 'lucide-react'
 
-export default function DisplaySelectorModal({ currentUrl, setDisplayUrl, onClose, displayLibrary }) {
+export default function DisplaySelectorModal({ currentUrl, setDisplayUrl, onClose, displayLibrary, displayThumbs: savedThumbs = {}, onSaveThumb }) {
   const isLoading = displayLibrary.length === 0
+  const [displayThumbs, setDisplayThumbs] = useState(() => ({ ...savedThumbs }))
+  const thumbInputRefs = useRef({})
+
+  const handleThumbUpload = (e, displayId) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (evt) => {
+      const dataUrl = evt.target.result
+      setDisplayThumbs(prev => ({ ...prev, [displayId]: dataUrl }))
+      onSaveThumb?.(displayId, dataUrl)  // persist to IDB
+    }
+    reader.readAsDataURL(file)
+    e.target.value = ''
+  }
 
   const handleFileUpload = (e) => {
     const file = e.target.files?.[0]
@@ -90,15 +105,29 @@ export default function DisplaySelectorModal({ currentUrl, setDisplayUrl, onClos
                           >
                             {/* Image Preview */}
                             <div className="aspect-[16/10] overflow-hidden bg-black/40 relative flex items-center justify-center">
-                              {d.thumb ? (
+                              {(d.thumb || displayThumbs[d.id]) ? (
                                 <img 
-                                  src={`${import.meta.env.BASE_URL}previews/${d.thumb}`}
+                                  src={displayThumbs[d.id] || `${import.meta.env.BASE_URL}previews/${d.thumb}`}
                                   alt={d.name}
                                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                                 />
                               ) : (
-                                <div className="text-accent/20 group-hover:scale-110 transition-all duration-700">
-                                  <Box size={40} />
+                                <div
+                                  onClick={(e) => { e.stopPropagation(); thumbInputRefs.current[d.id]?.click() }}
+                                  title="Click to add a preview image"
+                                  className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/20 hover:bg-accent/10 transition-colors cursor-pointer group/upload"
+                                >
+                                  <div className="p-3 rounded-2xl border-2 border-dashed border-white/10 group-hover/upload:border-accent/40 transition-colors">
+                                    <ImagePlus size={24} className="text-white/20 group-hover/upload:text-accent transition-colors" />
+                                  </div>
+                                  <span className="text-[8px] font-black uppercase tracking-widest text-white/20 group-hover/upload:text-accent/80 transition-colors">Add Preview</span>
+                                  <input
+                                    ref={el => thumbInputRefs.current[d.id] = el}
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => handleThumbUpload(e, d.id)}
+                                  />
                                 </div>
                               )}
                               {isActive && (

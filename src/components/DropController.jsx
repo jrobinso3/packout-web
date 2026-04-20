@@ -206,8 +206,24 @@ export default function DropController({ draggedProduct, onDisplayDrop, activeSh
       }
     }
 
+    // Tracking for mouse movement and time to differentiate between Click (select) and Drag (camera)
+    const interactionState = { x: 0, y: 0, time: 0 }
+    const handlePointerDown = (e) => {
+      interactionState.x = e.clientX
+      interactionState.y = e.clientY
+      interactionState.time = Date.now()
+    }
+
     // click: select or deselect a shelf / part (only fires without a drag)
     const handleMouseClick = (e) => {
+      const duration = Date.now() - interactionState.time
+      const moveX = Math.abs(e.clientX - interactionState.x)
+      const moveY = Math.abs(e.clientY - interactionState.y)
+      const dist = Math.hypot(moveX, moveY)
+
+      // If the interaction was long (>250ms) or moved a lot (>5px), it was a drag, not a click
+      if (duration > 250 || dist > 5) return
+
       const { x, y } = getNDC(e)
       const mesh = findBestDropzone(x, y)
       if (mesh) {
@@ -227,19 +243,21 @@ export default function DropController({ draggedProduct, onDisplayDrop, activeSh
     window.addEventListener('pointermove', handlePointerMove)
     window.addEventListener('pointerup',   handlePointerUp)
 
-    gl.domElement.addEventListener('mouseleave', clearHover)
-    gl.domElement.addEventListener('click',      handleMouseClick)
-    gl.domElement.addEventListener('dragover',   handleDragOver)
-    gl.domElement.addEventListener('drop',       handlePointerUp) // Treat HTML5 drop like pointerup
+    gl.domElement.addEventListener('pointerdown', handlePointerDown)
+    gl.domElement.addEventListener('mouseleave',  clearHover)
+    gl.domElement.addEventListener('click',       handleMouseClick)
+    gl.domElement.addEventListener('dragover',    handleDragOver)
+    gl.domElement.addEventListener('drop',        handlePointerUp) // Treat HTML5 drop like pointerup
 
     return () => {
       window.removeEventListener('pointermove', handlePointerMove)
       window.removeEventListener('pointerup',   handlePointerUp)
 
-      gl.domElement.removeEventListener('mouseleave', clearHover)
-      gl.domElement.removeEventListener('click',      handleMouseClick)
-      gl.domElement.removeEventListener('dragover',   handleDragOver)
-      gl.domElement.removeEventListener('drop',       handlePointerUp)
+      gl.domElement.removeEventListener('pointerdown', handlePointerDown)
+      gl.domElement.removeEventListener('mouseleave',  clearHover)
+      gl.domElement.removeEventListener('click',       handleMouseClick)
+      gl.domElement.removeEventListener('dragover',    handleDragOver)
+      gl.domElement.removeEventListener('drop',        handlePointerUp)
     }
   }, [gl, camera, scene]) // Re-run only if the canvas context or scene changes
 
