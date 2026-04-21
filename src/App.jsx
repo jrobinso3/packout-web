@@ -92,13 +92,18 @@ function App() {
     // Persist to IDB for instant restoration on next load
     try { await saveDisplayThumb(displayId, dataUrl) } catch (e) { console.warn('IDB thumb save failed', e) }
     // Persist to disk: writes PNG to public/previews/ and patches manifest.json
-    try {
-      await fetch(`${import.meta.env.BASE_URL}api/save-display-thumb`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ displayId, base64Data: dataUrl })
-      })
-    } catch (e) { console.warn('Disk thumb save failed (dev server only)', e) }
+    if (import.meta.env.DEV) {
+      try {
+        await fetch(`${import.meta.env.BASE_URL}api/save-display-thumb`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ displayId, base64Data: dataUrl })
+        })
+      } catch (e) {
+        // Silently fail or use a subtle warning - only relevant for developers
+        console.warn('Disk thumb sync failed (dev server only)', e)
+      }
+    }
   }, [])
 
   // ─── Placement State ────────────────────────────────────────────────────────

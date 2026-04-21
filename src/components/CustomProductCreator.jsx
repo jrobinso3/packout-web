@@ -145,26 +145,34 @@ export default function CustomProductCreator({ onAdd, existingProduct, onUpdate,
           reader.readAsDataURL(file)
         })
 
-        // Physical Upload via Persistence API
-        const endpoint = productType === '3D' ? 'upload-model' : 'upload-texture'
-        const res = await fetch(`${import.meta.env.BASE_URL}api/${endpoint}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            fileName: file.name,
-            base64Data
-          })
-        })
+        if (import.meta.env.DEV) {
+          // Physical Upload via Persistence API (Development only)
+          const endpoint = productType === '3D' ? 'upload-model' : 'upload-texture'
+          try {
+            const res = await fetch(`${import.meta.env.BASE_URL}api/${endpoint}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                fileName: file.name,
+                base64Data
+              })
+            })
 
-        if (res.ok) {
-          const data = await res.json()
-          finalUrl = data.url
+            if (res.ok) {
+              const data = await res.json()
+              finalUrl = data.url
+            } else {
+              // Fallback to Base64 if server exists but reject (e.g. error 500)
+              finalUrl = base64Data
+            }
+          } catch (e) {
+            // Fallback to Base64 on network error
+            finalUrl = base64Data
+          }
         } else {
-          // API unavailable or file already exists on disk — fall back to the
-          // public path so pre-copied files in /public work without re-uploading.
-          finalUrl = productType === '3D'
-            ? `products/3D/${file.name}`
-            : `products/${file.name}`
+          // In production, we MUST use the Base64 data as the URL 
+          // because a static host cannot store new files.
+          finalUrl = base64Data
         }
       }
 

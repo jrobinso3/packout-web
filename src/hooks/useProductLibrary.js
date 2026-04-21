@@ -49,17 +49,20 @@ export function useProductLibrary() {
       // If this ID was previously hidden, un-hide it
       await idb.unhideProduct(product.id)
       
-      const res = await fetch(`${import.meta.env.BASE_URL}api/save-product`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(product)
-      })
-      if (!res.ok) throw new Error('Failed to save to global registry')
+      // 1. Sync to disk only in development mode
+      if (import.meta.env.DEV) {
+        await fetch(`${import.meta.env.BASE_URL}api/save-product`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(product)
+        }).catch(() => {}) // Silence network errors
+      }
+
+      // 2. Always persist locally
       await idb.saveProduct(product)
       await fetchLibrary()
     } catch (err) {
-      await idb.saveProduct(product)
-      await fetchLibrary()
+      console.warn('Local save failed:', err)
     }
   }, [fetchLibrary])
 
@@ -68,16 +71,18 @@ export function useProductLibrary() {
       // Un-hide any IDs we are batch importing
       for(const p of newProducts) await idb.unhideProduct(p.id)
 
-      await fetch(`${import.meta.env.BASE_URL}api/save-products-batch`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newProducts)
-      })
+      if (import.meta.env.DEV) {
+        await fetch(`${import.meta.env.BASE_URL}api/save-products-batch`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newProducts)
+        }).catch(() => {})
+      }
+
       await idb.saveProductsBatch(newProducts)
       await fetchLibrary()
     } catch (err) {
-      await idb.saveProductsBatch(newProducts)
-      await fetchLibrary()
+      console.warn('Batch local save failed:', err)
     }
   }, [fetchLibrary])
 
@@ -95,20 +100,19 @@ export function useProductLibrary() {
     
     try {
       // 3. Sync to the global JSON registry via the Vite development API
-      const res = await fetch(`${import.meta.env.BASE_URL}api/save-product`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updated)
-      })
-      if (!res.ok) throw new Error('Global sync failed')
+      if (import.meta.env.DEV) {
+        await fetch(`${import.meta.env.BASE_URL}api/save-product`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updated)
+        }).catch(() => {})
+      }
       
       // 4. Update local persistence
       await idb.saveProduct(updated)
       await fetchLibrary()
     } catch (err) {
-      console.warn('Global registry sync failed, falling back to local storage:', err)
-      await idb.saveProduct(updated)
-      await fetchLibrary()
+      console.warn('Local update failed:', err)
     }
     return updated
   }, [products, fetchLibrary])
@@ -116,21 +120,20 @@ export function useProductLibrary() {
   const removeProduct = useCallback(async (id) => {
     try {
       // 1. Sync removal to global registry
-      await fetch(`${import.meta.env.BASE_URL}api/remove-product`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id })
-      })
+      if (import.meta.env.DEV) {
+        await fetch(`${import.meta.env.BASE_URL}api/remove-product`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id })
+        }).catch(() => {})
+      }
       
       // 2. Local cleanup
       await idb.deleteProduct(id)
       await idb.hideProduct(id)
       await fetchLibrary()
     } catch (err) {
-      console.warn('Global removal failed, falling back to local hide:', err)
-      await idb.deleteProduct(id)
-      await idb.hideProduct(id)
-      await fetchLibrary()
+      console.warn('Local hide failed:', err)
     }
   }, [fetchLibrary])
 
