@@ -43,8 +43,48 @@ function getSharedRenderer() {
 }
 
 /**
- * Loads a GLB from a URL and renders a 512×512 thumbnail using an offscreen
- * WebGLRenderer. Returns a PNG data URL, or null if rendering fails.
+ * Core rendering logic: takes a Three.js scene and returns a PNG data URL.
+ */
+export async function renderGlbThumbnailFromScene(modelScene) {
+  try {
+    const W = 512, H = 512
+    const renderer = getSharedRenderer()
+    renderer.setSize(W, H)
+    renderer.setPixelRatio(1)
+
+    const scene = new THREE.Scene()
+    scene.add(new THREE.AmbientLight(0xffffff, 1.2))
+    const sun = new THREE.DirectionalLight(0xffffff, 2)
+    sun.position.set(1, 2, 2)
+    scene.add(sun)
+    scene.add(modelScene)
+
+    const box    = new THREE.Box3().setFromObject(modelScene)
+    const size   = new THREE.Vector3()
+    const center = new THREE.Vector3()
+    box.getSize(size)
+    box.getCenter(center)
+
+    const radius = size.length() * 0.5
+    const camera = new THREE.PerspectiveCamera(45, W / H, radius * 0.01, radius * 100)
+    const dist   = radius / Math.sin((45 * Math.PI) / 180 / 2) * 1.1
+    camera.position.set(center.x + dist * 0.6, center.y + dist * 0.5, center.z + dist * 0.8)
+    camera.lookAt(center)
+
+    renderer.clear()
+    renderer.render(scene, camera)
+    const dataUrl = renderer.domElement.toDataURL('image/png')
+    
+    scene.clear()
+    return dataUrl
+  } catch (err) {
+    console.warn('GLB scene thumbnail render failed:', err)
+    return null
+  }
+}
+
+/**
+ * Loads a GLB from a URL and renders a 512×512 thumbnail.
  */
 export async function renderGlbThumbnail(glbUrl) {
   if (!glbUrl) return null
@@ -61,63 +101,23 @@ export async function renderGlbThumbnail(glbUrl) {
     try {
       new GLTFLoader().load(
         resolveAssetUrl(glbUrl),
-        (gltf) => {
+        async (gltf) => {
           if (resolved) return
-          try {
-            const W = 512, H = 512
-            const renderer = getSharedRenderer()
-            renderer.setSize(W, H)
-            renderer.setPixelRatio(1)
-
-            const scene = new THREE.Scene()
-            scene.add(new THREE.AmbientLight(0xffffff, 1.2))
-            const sun = new THREE.DirectionalLight(0xffffff, 2)
-            sun.position.set(1, 2, 2)
-            scene.add(sun)
-            scene.add(gltf.scene)
-
-            const box    = new THREE.Box3().setFromObject(gltf.scene)
-            const size   = new THREE.Vector3()
-            const center = new THREE.Vector3()
-            box.getSize(size)
-            box.getCenter(center)
-
-            const radius = size.length() * 0.5
-            const camera = new THREE.PerspectiveCamera(45, W / H, radius * 0.01, radius * 100)
-            const dist   = radius / Math.sin((45 * Math.PI) / 180 / 2) * 1.1
-            camera.position.set(
-              center.x + dist * 0.6,
-              center.y + dist * 0.5,
-              center.z + dist * 0.8
-            )
-            camera.lookAt(center)
-
-            renderer.clear()
-            renderer.render(scene, camera)
-            const dataUrl = renderer.domElement.toDataURL('image/png')
-            
-            // Cleanup memory carefully: dispose geometries and materials
-            gltf.scene.traverse(node => {
-              if (node.isMesh) {
-                node.geometry.dispose()
-                if (Array.isArray(node.material)) {
-                  node.material.forEach(m => m.dispose())
-                } else {
-                  node.material.dispose()
-                }
+          const dataUrl = await renderGlbThumbnailFromScene(gltf.scene)
+          
+          gltf.scene.traverse(node => {
+            if (node.isMesh) {
+              node.geometry.dispose()
+              if (Array.isArray(node.material)) {
+                node.material.forEach(m => m.dispose())
+              } else {
+                node.material.dispose()
               }
-            })
-            scene.clear()
-
-            resolved = true
-            clearTimeout(timeout)
-            resolve(dataUrl)
-          } catch (err) {
-            console.warn('GLB thumbnail render failed:', err)
-            resolved = true
-            clearTimeout(timeout)
-            resolve(null)
-          }
+            }
+          })
+          resolved = true
+          clearTimeout(timeout)
+          resolve(dataUrl)
         },
         undefined,
         (err) => { 

@@ -2,7 +2,7 @@ import { useState, useRef } from 'react'
 import { ImagePlus, Plus, X, Box } from 'lucide-react'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
 import * as THREE from 'three'
-import { renderGlbThumbnail } from '../utils/textureUtils'
+import { renderGlbThumbnailFromScene } from '../utils/textureUtils'
 
 const INCH_TO_M = 0.0254
 
@@ -26,26 +26,34 @@ const UNIT_TO_INCHES = { mm: 1 / 25.4, cm: 1 / 2.54, in: 1, m: 1 / INCH_TO_M }
 // Loads a GLB file, returns { size: Vector3, thumbnail: dataURL }.
 // Size is read via a lightweight GLTFLoader parse; thumbnail is delegated to
 // the shared renderGlbThumbnail utility so the logic lives in one place.
+// Loads a GLB file, returns { size: Vector3, thumbnail: dataURL }.
 async function readGlbInfo(file) {
   const blobUrl = URL.createObjectURL(file)
 
-  const size = await new Promise((resolve, reject) => {
-    new GLTFLoader().load(
-      blobUrl,
-      (gltf) => {
-        const s = new THREE.Vector3()
-        new THREE.Box3().setFromObject(gltf.scene).getSize(s)
-        resolve(s)
-      },
-      undefined,
-      reject
-    )
-  })
-
-  const thumbnail = await renderGlbThumbnail(blobUrl)
-  URL.revokeObjectURL(blobUrl)
-
-  return { size, thumbnail }
+  try {
+    const { size, thumbnail } = await new Promise((resolve, reject) => {
+      new GLTFLoader().load(
+        blobUrl,
+        async (gltf) => {
+          try {
+            const s = new THREE.Vector3()
+            new THREE.Box3().setFromObject(gltf.scene).getSize(s)
+            
+            // Pass the already loaded scene to a specialized version of the thumbnailer
+            const thumb = await renderGlbThumbnailFromScene(gltf.scene)
+            resolve({ size: s, thumbnail: thumb })
+          } catch (e) {
+            reject(e)
+          }
+        },
+        undefined,
+        reject
+      )
+    })
+    return { size, thumbnail }
+  } finally {
+    URL.revokeObjectURL(blobUrl)
+  }
 }
 
 function sizeToInches(size, unit) {
@@ -145,33 +153,22 @@ export default function CustomProductCreator({ onAdd, existingProduct, onUpdate,
           reader.readAsDataURL(file)
         })
 
-        if (import.meta.env.DEV) {
-          // Physical Upload via Persistence API (Development only)
-          const endpoint = productType === '3D' ? 'upload-model' : 'upload-texture'
-          try {
-            const res = await fetch(`${import.meta.env.BASE_URL}api/${endpoint}`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                fileName: file.name,
-                base64Data
-              })
-            })
-
-            if (res.ok) {
-              const data = await res.json()
-              finalUrl = data.url
-            } else {
-              // Fallback to Base64 if server exists but reject (e.g. error 500)
-              finalUrl = base64Data
-            }
-          } catch (e) {
-            // Fallback to Base64 on network error
+        // Attempt physical upload via Persistence API; fall back to Base64 if
+        // the server is unavailable (e.g. static host with no API).
+        const endpoint = productType === '3D' ? 'upload-model' : 'upload-texture'
+        try {
+          const res = await fetch(`${import.meta.env.BASE_URL}api/${endpoint}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fileName: file.name, base64Data })
+          })
+          if (res.ok) {
+            const data = await res.json()
+            finalUrl = data.url
+          } else {
             finalUrl = base64Data
           }
-        } else {
-          // In production, we MUST use the Base64 data as the URL 
-          // because a static host cannot store new files.
+        } catch (e) {
           finalUrl = base64Data
         }
       }

@@ -255,5 +255,6 @@ export default defineConfig({
       ignored: ['**/public/data/**', '**/public/products/**']
     }
   },
-  base: '/packout-web/',
+  // Override via VITE_BASE_URL env var on the remote server (e.g. VITE_BASE_URL=/)
+  base: process.env.VITE_BASE_URL ?? '/packout-web/',
 })

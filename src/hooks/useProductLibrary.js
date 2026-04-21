@@ -48,15 +48,13 @@ export function useProductLibrary() {
     try {
       // If this ID was previously hidden, un-hide it
       await idb.unhideProduct(product.id)
-      
-      // 1. Sync to disk only in development mode
-      if (import.meta.env.DEV) {
-        await fetch(`${import.meta.env.BASE_URL}api/save-product`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(product)
-        }).catch(() => {}) // Silence network errors
-      }
+
+      // 1. Sync to disk (silently ignored on static hosts with no API)
+      await fetch(`${import.meta.env.BASE_URL}api/save-product`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(product)
+      }).catch(() => {})
 
       // 2. Always persist locally
       await idb.saveProduct(product)
@@ -71,13 +69,11 @@ export function useProductLibrary() {
       // Un-hide any IDs we are batch importing
       for(const p of newProducts) await idb.unhideProduct(p.id)
 
-      if (import.meta.env.DEV) {
-        await fetch(`${import.meta.env.BASE_URL}api/save-products-batch`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newProducts)
-        }).catch(() => {})
-      }
+      await fetch(`${import.meta.env.BASE_URL}api/save-products-batch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newProducts)
+      }).catch(() => {})
 
       await idb.saveProductsBatch(newProducts)
       await fetchLibrary()
@@ -99,15 +95,13 @@ export function useProductLibrary() {
     const updated = { ...existing, ...updates }
     
     try {
-      // 3. Sync to the global JSON registry via the Vite development API
-      if (import.meta.env.DEV) {
-        await fetch(`${import.meta.env.BASE_URL}api/save-product`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(updated)
-        }).catch(() => {})
-      }
-      
+      // 3. Sync to the global JSON registry (silently ignored on static hosts)
+      await fetch(`${import.meta.env.BASE_URL}api/save-product`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated)
+      }).catch(() => {})
+
       // 4. Update local persistence
       await idb.saveProduct(updated)
       await fetchLibrary()
@@ -119,15 +113,13 @@ export function useProductLibrary() {
 
   const removeProduct = useCallback(async (id) => {
     try {
-      // 1. Sync removal to global registry
-      if (import.meta.env.DEV) {
-        await fetch(`${import.meta.env.BASE_URL}api/remove-product`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id })
-        }).catch(() => {})
-      }
-      
+      // 1. Sync removal to global registry (silently ignored on static hosts)
+      await fetch(`${import.meta.env.BASE_URL}api/remove-product`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+      }).catch(() => {})
+
       // 2. Local cleanup
       await idb.deleteProduct(id)
       await idb.hideProduct(id)

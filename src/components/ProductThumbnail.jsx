@@ -30,10 +30,17 @@ const ProductThumbnail = ({ product, onUpdate }) => {
   const isGlbModel = !!product.glbUrl
   const needs3D = isProceduralShape || isGlbModel
 
+  // ── Auto-reset error when the target URLs change ────────────────────────
+  useEffect(() => {
+    setError(false)
+  }, [product.textureUrl, product.glbUrl, product.thumbnailUrl])
+
   // ── Background Generation Effect ─────────────────────────────────────────
   useEffect(() => {
-    if (imageUrl) return
-    if (!needs3D) return
+    // If we have a direct image (2D texture or stored thumbnail), we're good
+    if (imageUrl && !needs3D) return
+    // If it's a model we already rendered, we're good
+    if (generatedThumb) return
     if (inProgress.has(product.id)) return
     if (thumbnailCache.has(product.id)) {
       setGeneratedThumb(thumbnailCache.get(product.id))
@@ -59,7 +66,7 @@ const ProductThumbnail = ({ product, onUpdate }) => {
         inProgress.delete(product.id)
         if (isMounted.current) setError(true)
       })
-  }, [product.id])
+  }, [product.id, product.textureUrl, product.glbUrl])
 
   // ── Upload handler (click-to-pick, no drag needed) ────────────────────────
   const handleFileChange = (e) => {
