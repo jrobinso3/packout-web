@@ -19,6 +19,7 @@ import { useLoader } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import { resolveAssetUrl } from '../utils/textureUtils'
+import { ErrorBoundary } from '../utils/ErrorBoundary'
 
 // Shared invisible material used for the five non-front faces of custom products.
 // Declared outside components so it is created once and never recreated.
@@ -320,18 +321,25 @@ function ProductGroup({ dropzoneMesh, items = [], rotation = 0, shelfId, display
 
   return (
     <group>
-      {Array.from(map.values()).map(({ product, matrices }) => (
-        <Suspense key={product.id} fallback={null}>
-          {/* Route to the correct batch renderer based on product type */}
-          {product.category === '3D' && product.glbUrl ? (
-            <ModelProductBatch product={product} matrices={matrices} shelfId={shelfId} />
-          ) : (product.isCustom || product.textureUrl) ? (
-            <CustomProductBatch product={product} matrices={matrices} shelfId={shelfId} />
-          ) : (
-            <StandardProductBatch product={product} matrices={matrices} shelfId={shelfId} />
-          )}
-        </Suspense>
-      ))}
+      {Array.from(map.values()).map(({ product, matrices }) => {
+        const standardFallback = <StandardProductBatch product={product} matrices={matrices} shelfId={shelfId} />
+        
+        return (
+          <Suspense key={product.id} fallback={null}>
+            {product.category === '3D' && product.glbUrl ? (
+              <ErrorBoundary fallback={standardFallback}>
+                <ModelProductBatch product={product} matrices={matrices} shelfId={shelfId} />
+              </ErrorBoundary>
+            ) : (product.isCustom || product.textureUrl) ? (
+              <ErrorBoundary fallback={standardFallback}>
+                <CustomProductBatch product={product} matrices={matrices} shelfId={shelfId} />
+              </ErrorBoundary>
+            ) : (
+              standardFallback
+            )}
+          </Suspense>
+        )
+      })}
     </group>
   )
 }

@@ -96,7 +96,17 @@ export async function renderGlbThumbnail(glbUrl) {
             renderer.render(scene, camera)
             const dataUrl = renderer.domElement.toDataURL('image/png')
             
-            // Cleanup memory carefully
+            // Cleanup memory carefully: dispose geometries and materials
+            gltf.scene.traverse(node => {
+              if (node.isMesh) {
+                node.geometry.dispose()
+                if (Array.isArray(node.material)) {
+                  node.material.forEach(m => m.dispose())
+                } else {
+                  node.material.dispose()
+                }
+              }
+            })
             scene.clear()
 
             resolved = true
@@ -291,6 +301,12 @@ export function applyArtworkMix(material, mixValue) {
     newTex.flipY           = tex.flipY;
     newTex.colorSpace      = tex.colorSpace;
     newTex.matrixAutoUpdate = tex.matrixAutoUpdate;
+
+    // Dispose the old texture to free GPU memory, but ONLY if it's a CanvasTexture
+    // we created (to avoid accidentally disposing shared source textures).
+    if (tex && tex.isCanvasTexture) {
+      tex.dispose();
+    }
 
     // Replace the material's albedo map and flag for GPU re-upload
     material.map = newTex;

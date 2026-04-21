@@ -217,6 +217,13 @@ export default function ConfiguratorCanvas({
       <Canvas
         shadows={{ type: THREE.PCFShadowMap }}    // PCF gives soft shadow edges
         camera={{ position: [2.5, 1, 4], fov: 22.6 }} // Narrow FOV = less perspective distortion
+        onCreated={({ gl }) => {
+          gl.domElement.addEventListener('webglcontextlost', (event) => {
+            event.preventDefault()
+            console.warn('WebGL pixel pipeline crashed (Context Lost). Attempting recovery...')
+            window.location.reload()
+          }, false)
+        }}
         gl={{
           preserveDrawingBuffer: true, // Required for toDataURL() PNG export
           antialias: true,

@@ -75,183 +75,150 @@ const syncGalleryPlugin = () => {
       
       // ─── PERSISTENCE API: HANDLE DISK WRITING ─────────────────────────────────
       server.middlewares.use(async (req, res, next) => {
-        if (req.method === 'POST' && req.url.endsWith('/api/save-product')) {
+        const url = req.url.split('?')[0]
+        
+        const getBody = () => new Promise((resolve) => {
           let body = ''
           req.on('data', chunk => { body += chunk })
-          req.on('end', () => {
-            try {
-              const product = JSON.parse(body)
-              const productsPath = path.join(dataDir, 'products.json')
-              
-              let currentProducts = []
-              if (fs.existsSync(productsPath)) {
-                currentProducts = JSON.parse(fs.readFileSync(productsPath, 'utf-8'))
-              }
+          req.on('end', () => resolve(body))
+        })
 
-              // Check for duplicates by ID
+        if (req.method === 'POST' && url.includes('/api/save-product')) {
+          console.log(`[API] POST save-product: ${url}`)
+          const body = await getBody()
+          try {
+            const product = JSON.parse(body)
+            const productsPath = path.join(dataDir, 'products.json')
+            let currentProducts = []
+            if (fs.existsSync(productsPath)) {
+              currentProducts = JSON.parse(fs.readFileSync(productsPath, 'utf-8'))
+            }
+            const existingIdx = currentProducts.findIndex(p => p.id === product.id)
+            if (existingIdx >= 0) {
+              currentProducts[existingIdx] = product
+            } else {
+              currentProducts.push(product)
+            }
+            if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true })
+            fs.writeFileSync(productsPath, JSON.stringify(currentProducts, null, 2))
+            res.statusCode = 200
+            res.setHeader('Content-Type', 'application/json')
+            res.end(JSON.stringify({ success: true }))
+          } catch (err) {
+            console.error('[API Error]', err)
+            res.statusCode = 500; res.end(JSON.stringify({ error: err.message }))
+          }
+          return
+        }
+
+        if (req.method === 'POST' && url.includes('/api/save-products-batch')) {
+          console.log(`[API] POST save-products-batch: ${url}`)
+          const body = await getBody()
+          try {
+            const newProducts = JSON.parse(body)
+            const productsPath = path.join(dataDir, 'products.json')
+            let currentProducts = []
+            if (fs.existsSync(productsPath)) {
+              currentProducts = JSON.parse(fs.readFileSync(productsPath, 'utf-8'))
+            }
+            newProducts.forEach(product => {
               const existingIdx = currentProducts.findIndex(p => p.id === product.id)
               if (existingIdx >= 0) {
                 currentProducts[existingIdx] = product
               } else {
                 currentProducts.push(product)
               }
-
-              fs.writeFileSync(productsPath, JSON.stringify(currentProducts, null, 2))
-              
-              res.statusCode = 200
-              res.setHeader('Content-Type', 'application/json')
-              res.end(JSON.stringify({ success: true }))
-            } catch (err) {
-              res.statusCode = 500
-              res.end(JSON.stringify({ error: err.message }))
-            }
-          })
+            })
+            if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true })
+            fs.writeFileSync(productsPath, JSON.stringify(currentProducts, null, 2))
+            res.statusCode = 200
+            res.setHeader('Content-Type', 'application/json')
+            res.end(JSON.stringify({ success: true }))
+          } catch (err) {
+            console.error('[API Error]', err)
+            res.statusCode = 500; res.end(JSON.stringify({ error: err.message }))
+          }
           return
         }
 
-        if (req.method === 'POST' && req.url.endsWith('/api/save-products-batch')) {
-          let body = ''
-          req.on('data', chunk => { body += chunk })
-          req.on('end', () => {
-            try {
-              const newProducts = JSON.parse(body)
-              const productsPath = path.join(dataDir, 'products.json')
-              
-              let currentProducts = []
-              if (fs.existsSync(productsPath)) {
-                currentProducts = JSON.parse(fs.readFileSync(productsPath, 'utf-8'))
-              }
-
-              newProducts.forEach(product => {
-                const existingIdx = currentProducts.findIndex(p => p.id === product.id)
-                if (existingIdx >= 0) {
-                  currentProducts[existingIdx] = product
-                } else {
-                  currentProducts.push(product)
-                }
-              })
-
-              fs.writeFileSync(productsPath, JSON.stringify(currentProducts, null, 2))
-              
-              res.statusCode = 200
-              res.setHeader('Content-Type', 'application/json')
-              res.end(JSON.stringify({ success: true }))
-            } catch (err) {
-              res.statusCode = 500
-              res.end(JSON.stringify({ error: err.message }))
+        if (req.method === 'POST' && url.includes('/api/remove-product')) {
+          console.log(`[API] POST remove-product: ${url}`)
+          const body = await getBody()
+          try {
+            const { id } = JSON.parse(body)
+            const productsPath = path.join(dataDir, 'products.json')
+            if (fs.existsSync(productsPath)) {
+              const currentProducts = JSON.parse(fs.readFileSync(productsPath, 'utf-8'))
+              const nextProducts = currentProducts.filter(p => p.id !== id)
+              fs.writeFileSync(productsPath, JSON.stringify(nextProducts, null, 2))
             }
-          })
+            res.statusCode = 200; res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({ success: true }))
+          } catch (err) {
+            console.error('[API Error]', err)
+            res.statusCode = 500; res.end(JSON.stringify({ error: err.message }))
+          }
           return
         }
 
-        if (req.method === 'POST' && req.url.endsWith('/api/remove-product')) {
-          let body = ''
-          req.on('data', chunk => { body += chunk })
-          req.on('end', () => {
-            try {
-              const { id } = JSON.parse(body)
-              const productsPath = path.join(dataDir, 'products.json')
-              
-              if (fs.existsSync(productsPath)) {
-                const currentProducts = JSON.parse(fs.readFileSync(productsPath, 'utf-8'))
-                const nextProducts = currentProducts.filter(p => p.id !== id)
-                fs.writeFileSync(productsPath, JSON.stringify(nextProducts, null, 2))
-              }
-              
-              res.statusCode = 200
-              res.setHeader('Content-Type', 'application/json')
-              res.end(JSON.stringify({ success: true }))
-            } catch (err) {
-              res.statusCode = 500
-              res.end(JSON.stringify({ error: err.message }))
-            }
-          })
+        if (req.method === 'POST' && url.includes('/api/upload-texture')) {
+          console.log(`[API] POST upload-texture: ${url}`)
+          const body = await getBody()
+          try {
+            const { fileName, base64Data } = JSON.parse(body)
+            const filePath = path.join(productsDir, fileName)
+            if (!fs.existsSync(productsDir)) fs.mkdirSync(productsDir, { recursive: true })
+            const buffer = Buffer.from(base64Data.replace(/^data:image\/\w+;base64,/, ""), 'base64')
+            fs.writeFileSync(filePath, buffer)
+            res.statusCode = 200; res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({ success: true, url: `products/${fileName}` }))
+          } catch (err) {
+            console.error('[API Error]', err)
+            res.statusCode = 500; res.end(JSON.stringify({ error: err.message }))
+          }
           return
         }
 
-        if (req.method === 'POST' && req.url.endsWith('/api/upload-texture')) {
-          let body = ''
-          req.on('data', chunk => { body += chunk })
-          req.on('end', () => {
-            try {
-              const { fileName, base64Data } = JSON.parse(body)
-              const filePath = path.join(productsDir, fileName)
-
-              if (!fs.existsSync(productsDir)) fs.mkdirSync(productsDir, { recursive: true })
-
-              // Strip the data:image/...;base64, prefix if present
-              const buffer = Buffer.from(base64Data.replace(/^data:image\/\w+;base64,/, ""), 'base64')
-              fs.writeFileSync(filePath, buffer)
-
-              res.statusCode = 200
-              res.setHeader('Content-Type', 'application/json')
-              res.end(JSON.stringify({ success: true, url: `products/${fileName}` }))
-            } catch (err) {
-              res.statusCode = 500
-              res.end(JSON.stringify({ error: err.message }))
-            }
-          })
-          return
-        }
-
-        if (req.method === 'POST' && req.url.endsWith('/api/upload-model')) {
-          let body = ''
-          req.on('data', chunk => { body += chunk })
-          req.on('end', () => {
-            try {
-              const { fileName, base64Data } = JSON.parse(body)
-              const modelsDir = path.join(productsDir, '3D')
-              if (!fs.existsSync(modelsDir)) fs.mkdirSync(modelsDir, { recursive: true })
-
-              const filePath = path.join(modelsDir, fileName)
-              const buffer = Buffer.from(base64Data.replace(/^data:[^;]+;base64,/, ''), 'base64')
-              fs.writeFileSync(filePath, buffer)
-
-              res.statusCode = 200
-              res.setHeader('Content-Type', 'application/json')
-              res.end(JSON.stringify({ success: true, url: `products/3D/${fileName}` }))
-            } catch (err) {
-              res.statusCode = 500
-              res.end(JSON.stringify({ error: err.message }))
-            }
-          })
+        if (req.method === 'POST' && url.includes('/api/upload-model')) {
+          console.log(`[API] POST upload-model: ${url}`)
+          const body = await getBody()
+          try {
+            const { fileName, base64Data } = JSON.parse(body)
+            const modelsDir = path.join(productsDir, '3D')
+            if (!fs.existsSync(modelsDir)) fs.mkdirSync(modelsDir, { recursive: true })
+            const filePath = path.join(modelsDir, fileName)
+            const buffer = Buffer.from(base64Data.replace(/^data:[^;]+;base64,/, ''), 'base64')
+            fs.writeFileSync(filePath, buffer)
+            res.statusCode = 200; res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({ success: true, url: `products/3D/${fileName}` }))
+          } catch (err) {
+            console.error('[API Error]', err)
+            res.statusCode = 500; res.end(JSON.stringify({ error: err.message }))
+          }
           return
         }
         
-        if (req.method === 'POST' && req.url.endsWith('/api/save-display-thumb')) {
-          let body = ''
-          req.on('data', chunk => { body += chunk })
-          req.on('end', () => {
-            try {
-              const { displayId, base64Data } = JSON.parse(body)
-              const fileName = `${displayId}.png`
-              const filePath = path.join(previewsDir, fileName)
-
-              if (!fs.existsSync(previewsDir)) fs.mkdirSync(previewsDir, { recursive: true })
-
-              // Write the PNG to public/previews/
-              const buffer = Buffer.from(base64Data.replace(/^data:image\/\w+;base64,/, ''), 'base64')
-              fs.writeFileSync(filePath, buffer)
-
-              // Update manifest.json to point to the new thumbnail
-              const manifestPath = path.join(displaysDir, 'manifest.json')
-              if (fs.existsSync(manifestPath)) {
-                const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'))
-                const entry = manifest.find(d => d.id === displayId)
-                if (entry) {
-                  entry.thumb = fileName
-                  fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2))
-                }
+        if (req.method === 'POST' && url.includes('/api/save-display-thumb')) {
+          console.log(`[API] POST save-display-thumb: ${url}`)
+          const body = await getBody()
+          try {
+            const { displayId, base64Data } = JSON.parse(body)
+            const fileName = `${displayId}.png`
+            const filePath = path.join(previewsDir, fileName)
+            if (!fs.existsSync(previewsDir)) fs.mkdirSync(previewsDir, { recursive: true })
+            const buffer = Buffer.from(base64Data.replace(/^data:image\/\w+;base64,/, ''), 'base64')
+            fs.writeFileSync(filePath, buffer)
+            const manifestPath = path.join(displaysDir, 'manifest.json')
+            if (fs.existsSync(manifestPath)) {
+              const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'))
+              const entry = manifest.find(d => d.id === displayId)
+              if (entry) {
+                entry.thumb = fileName
+                fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2))
               }
-
-              res.statusCode = 200
-              res.setHeader('Content-Type', 'application/json')
-              res.end(JSON.stringify({ success: true, thumb: fileName }))
-            } catch (err) {
-              res.statusCode = 500
-              res.end(JSON.stringify({ error: err.message }))
             }
-          })
+            res.statusCode = 200; res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({ success: true, thumb: fileName }))
+          } catch (err) {
+            console.error('[API Error]', err)
+            res.statusCode = 500; res.end(JSON.stringify({ error: err.message }))
+          }
           return
         }
         
