@@ -153,22 +153,26 @@ export default function CustomProductCreator({ onAdd, existingProduct, onUpdate,
           reader.readAsDataURL(file)
         })
 
-        // Attempt physical upload via Persistence API; fall back to Base64 if
-        // the server is unavailable (e.g. static host with no API).
-        const endpoint = productType === '3D' ? 'upload-model' : 'upload-texture'
-        try {
-          const res = await fetch(`${import.meta.env.BASE_URL}api/${endpoint}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fileName: file.name, base64Data })
-          })
-          if (res.ok) {
-            const data = await res.json()
-            finalUrl = data.url
-          } else {
+        if (import.meta.env.DEV) {
+          // Physical upload via Vite dev-server persistence API
+          const endpoint = productType === '3D' ? 'upload-model' : 'upload-texture'
+          try {
+            const res = await fetch(`${import.meta.env.BASE_URL}api/${endpoint}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ fileName: file.name, base64Data })
+            })
+            if (res.ok) {
+              const data = await res.json()
+              finalUrl = data.url
+            } else {
+              finalUrl = base64Data
+            }
+          } catch (e) {
             finalUrl = base64Data
           }
-        } catch (e) {
+        } else {
+          // Static host (e.g. GitHub Pages) — embed as Base64 data URL
           finalUrl = base64Data
         }
       }

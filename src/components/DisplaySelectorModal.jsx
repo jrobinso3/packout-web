@@ -1,7 +1,16 @@
-import { useState, useEffect, useRef } from 'react'
-import { X, Upload, Box, Check, Loader2, ImagePlus } from 'lucide-react'
+import { useState, useRef } from 'react'
+import { X, Upload, Check, Loader2, ImagePlus } from 'lucide-react'
+import { useConfigurator } from '../context/ConfiguratorContext'
 
-export default function DisplaySelectorModal({ currentUrl, setDisplayUrl, onClose, displayLibrary, displayThumbs: savedThumbs = {}, onSaveThumb }) {
+export default function DisplaySelectorModal({ onClose }) {
+  const {
+    displayUrl: currentUrl,
+    setDisplayUrl,
+    displayLibrary,
+    displayThumbs: savedThumbs,
+    handleSaveDisplayThumb: onSaveThumb
+  } = useConfigurator()
+
   const isLoading = displayLibrary.length === 0
   const [displayThumbs, setDisplayThumbs] = useState(() => ({ ...savedThumbs }))
   const thumbInputRefs = useRef({})
@@ -13,7 +22,7 @@ export default function DisplaySelectorModal({ currentUrl, setDisplayUrl, onClos
     reader.onload = (evt) => {
       const dataUrl = evt.target.result
       setDisplayThumbs(prev => ({ ...prev, [displayId]: dataUrl }))
-      onSaveThumb?.(displayId, dataUrl)  // persist to IDB
+      onSaveThumb?.(displayId, dataUrl)
     }
     reader.readAsDataURL(file)
     e.target.value = ''
@@ -34,36 +43,20 @@ export default function DisplaySelectorModal({ currentUrl, setDisplayUrl, onClos
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 sm:p-12 animate-in fade-in duration-300">
-      {/* Backdrop */}
-      <div 
-        className="absolute inset-0 bg-black/60 backdrop-blur-xl"
-        onClick={onClose}
-      />
-
-      {/* Modal Container */}
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-xl" onClick={onClose} />
       <div className="relative w-full max-w-5xl h-[85vh] bg-glass-bg border border-glass-border rounded-[2.5rem] shadow-3xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-300">
-        
-        {/* Header */}
         <div className="flex items-center justify-between p-8 border-b border-black/5 bg-black/5">
           <div className="flex flex-col gap-1">
-            <h2 className="text-xl font-black uppercase tracking-[0.2em] text-text-main">
-            Display Gallery
-          </h2>
+            <h2 className="text-xl font-black uppercase tracking-[0.2em] text-text-main">Display Gallery</h2>
             <p className="text-text-dim text-sm font-medium">Choose a fixture from our library or upload your own 3D model.</p>
           </div>
-          <button 
-            onClick={onClose}
-            className="w-10 h-10 rounded-full bg-black/5 hover:bg-black/10 flex items-center justify-center text-text-dim/40 hover:text-text-main transition-all border border-black/5"
-          >
+          <button onClick={onClose} className="w-10 h-10 rounded-full bg-black/5 hover:bg-black/10 flex items-center justify-center text-text-dim/40 hover:text-text-main transition-all border border-black/5">
             <X size={20} />
           </button>
         </div>
 
-        {/* Body */}
         <div className="flex-1 min-h-0 overflow-hidden flex flex-col p-8">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 flex-1 min-h-0">
-            
-            {/* Gallery Grid (Scrollable) */}
             <div className="lg:col-span-8 overflow-y-auto pr-6 custom-scrollbar space-y-12">
               {isLoading ? (
                 <div className="flex flex-col items-center justify-center py-20 gap-4 text-accent/40 bg-black/5 rounded-3xl border border-black/5">
@@ -77,67 +70,29 @@ export default function DisplaySelectorModal({ currentUrl, setDisplayUrl, onClos
                   acc[cat].push(d)
                   return acc
                 }, {})
-
                 return Object.entries(groups).map(([category, items]) => (
                   <div key={category} className="space-y-6">
                     <div className="flex items-center gap-3 px-1">
-                      <div className="h-px w-8 bg-accent/20" />
-                      <span className="text-[10px] font-black uppercase tracking-[0.3em] text-accent/80 whitespace-nowrap">
-                        {category}
-                      </span>
-                      <div className="h-px flex-1 bg-black/5" />
+                      <div className="h-px w-8 bg-accent/20" /><span className="text-[10px] font-black uppercase tracking-[0.3em] text-accent/80 whitespace-nowrap">{category}</span><div className="h-px flex-1 bg-black/5" />
                     </div>
-
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {items.map((d) => {
                         const fullUrl = `${import.meta.env.BASE_URL}displays/${d.url}`
                         const isActive = currentUrl === fullUrl
-
                         return (
-                          <button
-                            key={d.id}
-                            onClick={() => handleSelect(d.url)}
-                            className={`group relative flex flex-col rounded-3xl border-2 transition-all overflow-hidden ${
-                              isActive 
-                                ? 'border-accent bg-accent/5 shadow-[0_0_30px_rgba(0,240,255,0.1)]' 
-                                : 'border-black/5 bg-black/5 hover:border-black/20 hover:bg-black/10'
-                            }`}
-                          >
-                            {/* Image Preview */}
+                          <button key={d.id} onClick={() => handleSelect(d.url)} className={`group relative flex flex-col rounded-3xl border-2 transition-all overflow-hidden ${isActive ? 'border-accent bg-accent/5 shadow-[0_0_30px_rgba(0,240,255,0.1)]' : 'border-black/5 bg-black/5 hover:border-black/20 hover:bg-black/10'}`}>
                             <div className="aspect-[16/10] overflow-hidden bg-black/40 relative flex items-center justify-center">
                               {(d.thumb || displayThumbs[d.id]) ? (
-                                <img 
-                                  src={displayThumbs[d.id] || `${import.meta.env.BASE_URL}previews/${d.thumb}`}
-                                  alt={d.name}
-                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                                />
+                                <img src={displayThumbs[d.id] || `${import.meta.env.BASE_URL}previews/${d.thumb}`} alt={d.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                               ) : (
-                                <div
-                                  onClick={(e) => { e.stopPropagation(); thumbInputRefs.current[d.id]?.click() }}
-                                  title="Click to add a preview image"
-                                  className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/20 hover:bg-accent/10 transition-colors cursor-pointer group/upload"
-                                >
-                                  <div className="p-3 rounded-2xl border-2 border-dashed border-white/10 group-hover/upload:border-accent/40 transition-colors">
-                                    <ImagePlus size={24} className="text-white/20 group-hover/upload:text-accent transition-colors" />
-                                  </div>
+                                <div onClick={(e) => { e.stopPropagation(); thumbInputRefs.current[d.id]?.click() }} className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/20 hover:bg-accent/10 transition-colors cursor-pointer group/upload">
+                                  <div className="p-3 rounded-2xl border-2 border-dashed border-white/10 group-hover/upload:border-accent/40 transition-colors"><ImagePlus size={24} className="text-white/20 group-hover/upload:text-accent transition-colors" /></div>
                                   <span className="text-[8px] font-black uppercase tracking-widest text-white/20 group-hover/upload:text-accent/80 transition-colors">Add Preview</span>
-                                  <input
-                                    ref={el => thumbInputRefs.current[d.id] = el}
-                                    type="file"
-                                    accept="image/*"
-                                    className="hidden"
-                                    onChange={(e) => handleThumbUpload(e, d.id)}
-                                  />
+                                  <input ref={el => thumbInputRefs.current[d.id] = el} type="file" accept="image/*" className="hidden" onChange={(e) => handleThumbUpload(e, d.id)} />
                                 </div>
                               )}
-                              {isActive && (
-                                <div className="absolute top-4 right-4 w-8 h-8 rounded-full bg-accent flex items-center justify-center text-black shadow-lg">
-                                  <Check size={18} strokeWidth={3} />
-                                </div>
-                              )}
+                              {isActive && <div className="absolute top-4 right-4 w-8 h-8 rounded-full bg-accent flex items-center justify-center text-black shadow-lg"><Check size={18} strokeWidth={3} /></div>}
                             </div>
-
-                            {/* Info */}
                             <div className="p-5 flex flex-col gap-1 text-left">
                               <span className="text-[11px] font-bold text-text-main truncate">{d.name?.replace(/\.glb$/i, '')}</span>
                               <span className="text-[10px] font-black uppercase tracking-widest text-text-dim/60">{d.category || 'Fixture'}</span>
@@ -151,40 +106,21 @@ export default function DisplaySelectorModal({ currentUrl, setDisplayUrl, onClos
               })()}
             </div>
 
-            {/* Upload Sidebar */}
             <div className="lg:col-span-4 space-y-6 h-fit">
-              <div className="flex items-center gap-3 mb-2">
-                <Upload size={18} className="text-secondary" />
-                <h3 className="text-xs font-black uppercase tracking-[0.2em] text-text-dim">Custom Model</h3>
-              </div>
-
+              <div className="flex items-center gap-3 mb-2"><Upload size={18} className="text-secondary" /><h3 className="text-xs font-black uppercase tracking-[0.2em] text-text-dim">Custom Model</h3></div>
               <label className="flex flex-col items-center justify-center aspect-square md:aspect-auto rounded-3xl border-2 border-dashed border-white/10 bg-white/5 hover:border-accent hover:bg-accent/5 transition-all cursor-pointer group p-8 text-center gap-6">
-                <div className="w-20 h-20 rounded-2.5xl bg-white/5 flex items-center justify-center text-white/20 group-hover:text-accent group-hover:bg-accent/10 transition-all border border-white/5 group-hover:border-accent/20">
-                  <Upload size={40} />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <span className="text-lg font-bold text-white">Upload GLB</span>
-                  <p className="text-sm text-text-dim font-medium leading-relaxed">
-                    Drag and drop your own display model here or click to browse.
-                  </p>
-                </div>
-                <div className="px-4 py-2 rounded-full bg-white/5 text-[10px] font-black text-text-dim/60 uppercase tracking-widest">
-                  Supports .glb & .gltf
-                </div>
+                <div className="w-20 h-20 rounded-2.5xl bg-white/5 flex items-center justify-center text-white/20 group-hover:text-accent group-hover:bg-accent/10 transition-all border border-white/5 group-hover:border-accent/20"><Upload size={40} /></div>
+                <div className="flex flex-col gap-2"><span className="text-lg font-bold text-white">Upload GLB</span><p className="text-sm text-text-dim font-medium leading-relaxed">Drag and drop your own display model here or click to browse.</p></div>
+                <div className="px-4 py-2 rounded-full bg-white/5 text-[10px] font-black text-text-dim/60 uppercase tracking-widest">Supports .glb & .gltf</div>
                 <input type="file" className="hidden" accept=".glb,.gltf" onChange={handleFileUpload} />
               </label>
             </div>
-
           </div>
         </div>
 
-        {/* Footer Info */}
         <div className="p-6 bg-black/20 border-t border-white/5 text-center">
-          <p className="text-[10px] font-black uppercase tracking-widest text-text-dim/40 max-w-2xl mx-auto">
-            Ensure display models include <span className="text-accent underline decoration-accent/40 decoration-wavy underline-offset-4">_col</span> or <span className="text-accent underline decoration-accent/40 decoration-wavy underline-offset-4">_ind</span> suffixes for shelf identification.
-          </p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-text-dim/40 max-w-2xl mx-auto">Ensure display models include <span className="text-accent underline decoration-accent/40 decoration-wavy underline-offset-4">_col</span> or <span className="text-accent underline decoration-accent/40 decoration-wavy underline-offset-4">_ind</span> suffixes for shelf identification.</p>
         </div>
-
       </div>
     </div>
   )
