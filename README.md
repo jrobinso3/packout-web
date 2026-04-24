@@ -1,16 +1,60 @@
-# React + Vite
+# Packout Web — 3D Display Configurator
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Packout Web is an enterprise-grade, interactive 3D application designed for sales teams and retail planners to visualize, configure, and optimize product displays in a photorealistic browser environment.
 
-Currently, two official plugins are available:
+## Key Functions
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Interactive 3D Workspace**: Real-time placement and manipulation of products on standard retail fixtures.
+- **Library Management**: Intelligent product and display galleries supporting custom GLB model uploads and texture application.
+- **Refine Asset Studio**: Precision control over asset orientation, scaling, and material properties.
+- **Provide Structured Reference for Generative AI to Apply Art**: PNG export creates clean images that can be manipulated by AI to apply art to displays as part of a large Hub Workflow.
+- **Persistant Sessions**: Browser-based state management ensures configurations are saved locally via IndexedDB.
+- **High-Quality Export**: Capture and download high-fidelity renders for presentations.
 
-## React Compiler
+## Technical Architecture
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+The application is built on a modern, modular stack designed for high performance and visual fidelity:
 
-## Expanding the ESLint configuration
+- **Frontend**: [React 19](https://react.dev/) + [Vite 8](https://vitejs.dev/)
+- **3D Engine**: [Three.js](https://threejs.org/) via [@react-three/fiber](https://github.com/pmndrs/react-three-fiber) and [@react-three/drei](https://github.com/pmndrs/drei)
+- **State Management**: Context-driven modular architecture (`ConfiguratorContext`)
+- **Styling**: [Tailwind CSS 4](https://tailwindcss.com/)
+- **Persistence**: [IndexedDB (IDB)](https://github.com/jakearchibald/idb) for local asset and configuration storage
+- **Data Engineering**: Integration with `xlsx` for bulk product metadata management
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Azure Migration & Enterprise Roadmap
+
+Currently hosted on GitHub Pages for rapid iteration, the application is designed for seamless migration to a secure, multi-tenant enterprise environment on Microsoft Azure.
+
+Detailed instructions and the phased transition plan can be found in the:
+**[Enterprise Roadmap & Azure Migration Guide](./roadmap.md)**
+
+### Proposed Azure Stack:
+- **Hosting**: Azure Static Web Apps (CDN-backed frontend)
+- **Backend**: Azure Functions (Serverless Node.js API)
+- **Database**: Azure Cosmos DB (Multi-tenant product libraries)
+- **Storage**: Azure Blob Storage (3D assets and textures)
+- **Identity**: Microsoft Entra ID (Single Sign-On / SSO)
+
+---
+
+## Getting Started
+
+### Local Development
+```bash
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+```
+
+### Production Build
+```bash
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
+```
+
